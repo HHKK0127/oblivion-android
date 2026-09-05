@@ -2,6 +2,9 @@
 #include "game_console.h"
 #include "text_renderer.h"
 #include "ui_draw_helper.h"
+#include "texture_viewer.h"
+#include "model_viewer.h"
+#include "world_viewer.h"
 #include <algorithm>
 #include <cmath>
 #include <android/log.h>
@@ -16,7 +19,8 @@ DebugMenu::DebugMenu()
       safeLeft(0), safeTop(0), safeRight(160), safeBottom(220),
       currentTab(Tab::PLAYER),
       feedbackTimer(0.0f),
-      feedbackColor(0.4f, 0.9f, 0.4f) {}
+      feedbackColor(0.4f, 0.9f, 0.4f),
+      textureViewer(nullptr), modelViewer(nullptr), worldViewer(nullptr) {}
 
 DebugMenu::~DebugMenu() { cleanup(); }
 
@@ -27,6 +31,20 @@ bool DebugMenu::initialize(TextRenderer* tr, GameConsole* c) {
     console = c;
     createTabButtons();
     createAllTabContents();
+
+    // Initialize viewers
+    textureViewer = new TextureViewer();
+    textureViewer->initialize(textRenderer, nullptr);
+    textureViewer->setScreenSize(screenWidth, screenHeight);
+
+    modelViewer = new ModelViewer();
+    modelViewer->initialize(textRenderer, nullptr);
+    modelViewer->setScreenSize(screenWidth, screenHeight);
+
+    worldViewer = new WorldViewer();
+    worldViewer->initialize(textRenderer, nullptr);
+    worldViewer->setScreenSize(screenWidth, screenHeight);
+
     initialized = true;
     LOGI_DEBUG("DebugMenu initialized");
     return true;
@@ -35,6 +53,24 @@ bool DebugMenu::initialize(TextRenderer* tr, GameConsole* c) {
 void DebugMenu::cleanup() {
     tabButtons.clear();
     tabContents.clear();
+
+    // Cleanup viewers
+    if (textureViewer) {
+        textureViewer->cleanup();
+        delete textureViewer;
+        textureViewer = nullptr;
+    }
+    if (modelViewer) {
+        modelViewer->cleanup();
+        delete modelViewer;
+        modelViewer = nullptr;
+    }
+    if (worldViewer) {
+        worldViewer->cleanup();
+        delete worldViewer;
+        worldViewer = nullptr;
+    }
+
     initialized = false;
 }
 
@@ -49,6 +85,11 @@ void DebugMenu::setScreenSize(int w, int h) {
     screenHeight = h;
     safeRight = std::max(160.0f, w * 0.15f);
     safeBottom = std::max(220.0f, h * 0.18f);
+
+    // Propagate to viewers
+    if (textureViewer) textureViewer->setScreenSize(w, h);
+    if (modelViewer) modelViewer->setScreenSize(w, h);
+    if (worldViewer) worldViewer->setScreenSize(w, h);
 }
 
 // ==================== Touch Event Handling ====================
@@ -171,6 +212,39 @@ void DebugMenu::executeButtonCommand(Button& btn) {
         LOGI_DEBUG("Button '%s' has no command", btn.label.c_str());
         return;
     }
+
+    // Viewer toggle commands
+    if (btn.command == "textureviewer") {
+        if (textureViewer) {
+            textureViewer->toggle();
+            feedbackText = "Texture Viewer: " + std::string(textureViewer->isVisible() ? "ON" : "OFF");
+            feedbackTimer = 2.0f;
+            feedbackColor = glm::vec3(0.3f, 0.7f, 0.9f);
+            LOGI_DEBUG("TextureViewer toggled");
+        }
+        return;
+    }
+    if (btn.command == "modelviewer") {
+        if (modelViewer) {
+            modelViewer->toggle();
+            feedbackText = "Model Viewer: " + std::string(modelViewer->isVisible() ? "ON" : "OFF");
+            feedbackTimer = 2.0f;
+            feedbackColor = glm::vec3(0.3f, 0.7f, 0.9f);
+            LOGI_DEBUG("ModelViewer toggled");
+        }
+        return;
+    }
+    if (btn.command == "worldviewer") {
+        if (worldViewer) {
+            worldViewer->toggle();
+            feedbackText = "World Viewer: " + std::string(worldViewer->isVisible() ? "ON" : "OFF");
+            feedbackTimer = 2.0f;
+            feedbackColor = glm::vec3(0.3f, 0.7f, 0.9f);
+            LOGI_DEBUG("WorldViewer toggled");
+        }
+        return;
+    }
+
     if (!console) {
         LOGI_DEBUG("Console not available");
         return;
@@ -270,6 +344,11 @@ void DebugMenu::update(float deltaTime) {
         feedbackTimer -= deltaTime;
     }
 
+    // Update viewers
+    if (textureViewer) textureViewer->update(deltaTime);
+    if (modelViewer) modelViewer->update(deltaTime);
+    if (worldViewer) worldViewer->update(deltaTime);
+
     calculateButtonPositions();
 }
 
@@ -314,6 +393,17 @@ void DebugMenu::render() {
     renderBackground();
     renderTabBar();
     renderContent();
+
+    // Render viewers (overlay on top)
+    if (textureViewer && textureViewer->isVisible()) {
+        textureViewer->render();
+    }
+    if (modelViewer && modelViewer->isVisible()) {
+        modelViewer->render();
+    }
+    if (worldViewer && worldViewer->isVisible()) {
+        worldViewer->render();
+    }
 }
 
 void DebugMenu::renderBackground() {
@@ -705,6 +795,8 @@ void DebugMenu::createAllTabContents() {
             {"Move South +512", "moverel 0 512"},
             {"Move East +512", "moverel 512 0"},
             {"Move West +512", "moverel -512 0"},
+            // Viewer toggle
+            {"World Viewer", "worldviewer"},
         };
         for (const auto& item : items) {
             Button btn;
@@ -814,6 +906,9 @@ void DebugMenu::createAllTabContents() {
             {"Asset Stats", "assetstats"},
             // Phase 66: Texture browsing
             {"Textures Detail", "texturesdetail"},
+            // Viewer toggles
+            {"Texture Viewer", "textureviewer"},
+            {"Model Viewer", "modelviewer"},
         };
         for (const auto& item : items) {
             Button btn;

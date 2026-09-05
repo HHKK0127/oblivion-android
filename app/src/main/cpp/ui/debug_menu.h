@@ -7,6 +7,9 @@
 
 class TextRenderer;
 class GameConsole;
+class TextureViewer;
+class ModelViewer;
+class WorldViewer;
 
 /**
  * @brief Debug Menu - Touch-based GUI for game system testing
@@ -29,6 +32,11 @@ public:
 
     bool initialize(TextRenderer* textRenderer, GameConsole* console);
     void cleanup();
+
+    // Viewer access
+    TextureViewer* getTextureViewer() { return textureViewer; }
+    ModelViewer* getModelViewer() { return modelViewer; }
+    WorldViewer* getWorldViewer() { return worldViewer; }
 
     void toggle();
     bool isVisible() const { return visible; }
@@ -113,6 +121,11 @@ private:
     std::string feedbackText;
     float feedbackTimer;
     glm::vec3 feedbackColor;
+
+    // Viewers
+    TextureViewer* textureViewer;
+    ModelViewer* modelViewer;
+    WorldViewer* worldViewer;
 
     // UI constants
     static constexpr float TAB_HEIGHT = 50.0f;

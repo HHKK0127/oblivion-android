@@ -134,6 +134,9 @@ add_library(native-lib SHARED
     ui/debug_hud.cpp
     ui/game_console.cpp
     ui/debug_menu.cpp
+    ui/texture_viewer.cpp
+    ui/model_viewer.cpp
+    ui/world_viewer.cpp
     ui/npc_debug_visualizer.cpp
     ui/world_debug_info.cpp
     ui/performance_graph.cpp
