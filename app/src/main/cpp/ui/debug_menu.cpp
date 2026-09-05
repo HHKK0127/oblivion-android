@@ -14,7 +14,9 @@ DebugMenu::DebugMenu()
       visible(false), initialized(false),
       screenWidth(1080), screenHeight(1920),
       safeLeft(0), safeTop(0), safeRight(160), safeBottom(220),
-      currentTab(Tab::PLAYER) {}
+      currentTab(Tab::PLAYER),
+      feedbackTimer(0.0f),
+      feedbackColor(0.4f, 0.9f, 0.4f) {}
 
 DebugMenu::~DebugMenu() { cleanup(); }
 
@@ -59,12 +61,17 @@ void DebugMenu::onTouchDown(float x, float y) {
     touchState.pressedButton = nullptr;
     touchState.isScrolling = false;
 
+    LOGI_DEBUG("onTouchDown: touch=(%.1f, %.1f) screen=%dx%d scale=%.2f",
+               x, y, screenWidth, screenHeight, getScale());
+
     // Check tab buttons first
     Button* tabBtn = hitTestTab(x, y);
     if (tabBtn) {
         touchState.pressedButton = tabBtn;
         tabBtn->isPressed = true;
         tabBtn->pressTimer = 0.15f;
+        LOGI_DEBUG("Hit tab button: %s at (%.0f, %.0f) size (%.0f x %.0f)",
+                   tabBtn->label.c_str(), tabBtn->x, tabBtn->y, tabBtn->w, tabBtn->h);
         return;
     }
 
@@ -74,10 +81,14 @@ void DebugMenu::onTouchDown(float x, float y) {
         touchState.pressedButton = contentBtn;
         contentBtn->isPressed = true;
         contentBtn->pressTimer = 0.15f;
+        LOGI_DEBUG("Hit content button: '%s' at (%.0f, %.0f) size (%.0f x %.0f)",
+                   contentBtn->label.c_str(), contentBtn->x, contentBtn->y,
+                   contentBtn->w, contentBtn->h);
         return;
     }
 
     // No button hit - start scrolling
+    LOGI_DEBUG("No button hit at (%.1f, %.1f) - starting scroll", x, y);
     touchState.isScrolling = true;
 }
 
@@ -112,11 +123,16 @@ void DebugMenu::onTouchMove(float x, float y) {
 }
 
 void DebugMenu::onTouchUp(float x, float y) {
+    LOGI_DEBUG("onTouchUp: touch=(%.1f, %.1f) isActive=%d pressedBtn=%p isScrolling=%d",
+               x, y, touchState.isActive ? 1 : 0, (void*)touchState.pressedButton,
+               touchState.isScrolling ? 1 : 0);
     if (!touchState.isActive) return;
 
     float dx = x - touchState.startX;
     float dy = y - touchState.startY;
     float dist = std::hypot(dx, dy);
+
+    LOGI_DEBUG("onTouchUp: dist=%.2f threshold=%.2f", dist, TouchState::TAP_THRESHOLD);
 
     // Only execute command if it was a tap (not a scroll)
     if (!touchState.isScrolling && dist < TouchState::TAP_THRESHOLD) {
@@ -151,9 +167,22 @@ void DebugMenu::onTouchCancel() {
 // ==================== Command Execution ====================
 
 void DebugMenu::executeButtonCommand(Button& btn) {
-    if (btn.command.empty() || !console) return;
+    if (btn.command.empty()) {
+        LOGI_DEBUG("Button '%s' has no command", btn.label.c_str());
+        return;
+    }
+    if (!console) {
+        LOGI_DEBUG("Console not available");
+        return;
+    }
     console->executeCommand(btn.command);
     btn.pressTimer = 0.2f; // Visual feedback
+
+    // Show feedback in DebugMenu
+    feedbackText = "Executed: " + btn.command;
+    feedbackTimer = 3.0f;  // Show for 3 seconds
+    feedbackColor = glm::vec3(0.4f, 0.9f, 0.4f);  // Green
+
     LOGI_DEBUG("Executed: %s", btn.command.c_str());
 }
 
@@ -189,17 +218,29 @@ DebugMenu::Button* DebugMenu::hitTestContent(float x, float y) {
     float tabH = TAB_HEIGHT * s;
     float contentY = tabBarY + tabH + 20.0f * s;
     float contentH = screenHeight - safeBottom - contentY;
-    if (y < contentY || y > contentY + contentH) return nullptr;
+    if (y < contentY || y > contentY + contentH) {
+        LOGI_DEBUG("hitTestContent: y=%.1f outside content range [%.1f, %.1f] (screen=%d, safeBottom=%.0f)",
+                   y, contentY, contentY + contentH, screenHeight, safeBottom);
+        return nullptr;
+    }
 
     size_t idx = static_cast<size_t>(currentTab);
     if (idx >= tabContents.size()) return nullptr;
 
+    int btnCount = 0;
     for (auto& btn : tabContents[idx].buttons) {
         if (btn.y + btn.h < contentY || btn.y > contentY + contentH) continue;
         if (x >= btn.x && x <= btn.x + btn.w && y >= btn.y && y <= btn.y + btn.h) {
+            LOGI_DEBUG("hitTestContent: HIT button '%s' at (%.0f, %.0f)-(%.0f, %.0f) touch=(%.1f, %.1f)",
+                       btn.label.c_str(), btn.x, btn.y, btn.x + btn.w, btn.y + btn.h, x, y);
             return &btn;
         }
+        btnCount++;
     }
+    LOGI_DEBUG("hitTestContent: no hit for touch=(%.1f, %.1f) checked %d buttons, first btn at (%.0f, %.0f)",
+               x, y, btnCount,
+               tabContents[idx].buttons.empty() ? 0.0f : tabContents[idx].buttons[0].x,
+               tabContents[idx].buttons.empty() ? 0.0f : tabContents[idx].buttons[0].y);
     return nullptr;
 }
 
@@ -222,6 +263,11 @@ void DebugMenu::update(float deltaTime) {
                 if (btn.pressTimer <= 0) btn.isPressed = false;
             }
         }
+    }
+
+    // Update feedback timer
+    if (feedbackTimer > 0.0f) {
+        feedbackTimer -= deltaTime;
     }
 
     calculateButtonPositions();
@@ -330,6 +376,25 @@ void DebugMenu::renderContent() {
 
         renderButton(btn, s);
     }
+
+    // Render command feedback at bottom of content area
+    if (feedbackTimer > 0.0f && textRenderer) {
+        float feedbackY = contentY + contentH - 30.0f * s;
+        float feedbackFontSize = 0.4f * s;
+        float textW = textRenderer->getTextWidth(feedbackText.c_str(), feedbackFontSize);
+        float feedbackX = (screenWidth - textW) * 0.5f;
+
+        // Background for feedback
+        UIDrawHelper::drawColoredQuad(feedbackX - 10.0f * s, feedbackY - 5.0f * s,
+                                       textW + 20.0f * s, 25.0f * s,
+                                       glm::vec4(0.0f, 0.0f, 0.0f, 0.8f),
+                                       screenWidth, screenHeight);
+
+        // Feedback text
+        float alpha = std::min(1.0f, feedbackTimer);
+        textRenderer->renderText(feedbackText.c_str(), feedbackX, feedbackY + 12.0f * s,
+                                  glm::vec4(feedbackColor.x, feedbackColor.y, feedbackColor.z, alpha), feedbackFontSize);
+    }
 }
 
 void DebugMenu::renderButton(Button& btn, float s) {
@@ -375,11 +440,23 @@ std::string DebugMenu::getTabName(Tab tab) const {
 
 void DebugMenu::clampScrollOffsets() {
     size_t idx = static_cast<size_t>(currentTab);
-    if (idx < tabContents.size()) {
-        auto& content = tabContents[idx];
-        float maxScroll = std::max(0.0f, content.buttons.size() * 30.0f - 500.0f);
-        content.scrollOffset = std::clamp(content.scrollOffset, 0.0f, maxScroll);
-    }
+    if (idx >= tabContents.size()) return;
+
+    auto& content = tabContents[idx];
+    float s = getScale();
+    float tabY = safeTop + 8.0f * s;
+    float tabH = TAB_HEIGHT * s;
+    float contentY = tabY + tabH + 20.0f * s;
+    float contentH = screenHeight - safeBottom - contentY;
+    float btnH = BUTTON_HEIGHT * s;
+    float margin = BUTTON_MARGIN * s;
+
+    // 2-column layout: calculate row count
+    int rows = (static_cast<int>(content.buttons.size()) + 1) / 2;
+    float totalHeight = rows * (btnH + margin);
+
+    float maxScroll = std::max(0.0f, totalHeight - contentH);
+    content.scrollOffset = std::clamp(content.scrollOffset, 0.0f, maxScroll);
 }
 
 // ==================== Tab Content Creation ====================

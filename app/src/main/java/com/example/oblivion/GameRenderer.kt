@@ -165,6 +165,7 @@ class GameRenderer : GLSurfaceView.Renderer {
     external fun nativeTogglePerfGraph()
     external fun nativeToggleAllDebug()
     external fun nativeToggleDebugMenu()
+    external fun nativeIsDebugMenuVisible(): Boolean
 
     // Exit request check
     external fun nativeIsExitRequested(): Boolean

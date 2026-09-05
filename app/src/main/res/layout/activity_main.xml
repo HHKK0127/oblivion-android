@@ -72,7 +72,7 @@
 
     </LinearLayout>
 
-    <!-- Debug Toggle Button - Top-left corner -->
+    <!-- Debug Toggle Button - Top-left corner, above panel -->
     <Button
         android:id="@+id/btn_debug_toggle"
         android:layout_width="36dp"
@@ -84,6 +84,7 @@
         android:textSize="12sp"
         android:background="#333333"
         android:textColor="#FFFFFF"
-        android:alpha="0.5" />
+        android:alpha="0.5"
+        android:elevation="10dp" />
 
 </FrameLayout>

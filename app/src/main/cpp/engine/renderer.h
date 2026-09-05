@@ -243,6 +243,7 @@ public:
     // Debug System Toggles
     void toggleGameConsole();
     void toggleDebugMenu();
+    bool isDebugMenuVisible() const;
     void toggleNpcDebugVisualizer();
     void toggleWorldDebugInfo();
     void togglePerformanceGraph();

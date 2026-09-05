@@ -116,6 +116,12 @@ void Renderer::resize(unsigned int width, unsigned int height) {
         LOGW("WARNING: TextRenderer is NULL in resize()! Dimensions not updated!");
     }
 
+    // Update DebugMenu screen size
+    if (debugMenu) {
+        debugMenu->setScreenSize(screenWidth, screenHeight);
+        LOGI("DebugMenu screen size updated to: %ux%u", screenWidth, screenHeight);
+    }
+
     // Update RetroFilter resolution
     if (retroFilter) {
         retroFilter->setNativeResolution(screenWidth, screenHeight);
@@ -2866,11 +2872,6 @@ void Renderer::render(float deltaTime) {
         uiSystem->render();
     }
 
-    // Render DebugMenu on top of UISystem when visible
-    if (debugMenu && debugMenu->isVisible()) {
-        debugMenu->render();
-    }
-
     // Render Floating Combat Text
     if (floatingText) {
         floatingText->render();
@@ -2905,6 +2906,17 @@ void Renderer::render(float deltaTime) {
         }
     }
 
+    // DebugMenu/Console overlay - render last so it's always on top
+    if (debugMenu) {
+        debugMenu->update(deltaTime);
+        if (debugMenu->isVisible()) {
+            debugMenu->render();
+        }
+    }
+    if (gameConsole && gameConsole->isVisible()) {
+        gameConsole->render();
+    }
+
     LOGD("Frame rendered: deltaTime=%.3f, FPS=%.1f, Target FPS=%d",
          deltaTime, performanceMonitor ? performanceMonitor->getFPS() : 0.0f, targetFPS);
 }
@@ -2936,25 +2948,7 @@ void Renderer::onTouchEvent(int pointerId, float x, float y, int action) {
         touchStates.erase(pointerId);
     }
 
-    // Phase 9: UISystem handles all actions
-    if (uiSystem) {
-        bool uiHandled = false;
-        if (action == 0 || action == 5) {
-            uiHandled = uiSystem->onTouchDown(x, y, pointerId);
-        } else if (action == 1 || action == 6) {
-            uiHandled = uiSystem->onTouchUp(x, y, pointerId);
-        } else if (action == 2) {
-            uiHandled = uiSystem->onTouchMove(x, y, dx, dy, pointerId);
-        }
-        
-        if (uiHandled) {
-            LOGD("Touch consumed by UISystem");
-            return;
-        }
-        LOGD("UISystem did not handle touch");
-    }
-
-    // DebugMenu handles touch when visible
+    // DebugMenu handles touch when visible (highest priority - must be before UISystem)
     if (debugMenu && debugMenu->isVisible()) {
         if (action == 0 || action == 5) { // DOWN
             debugMenu->onTouchDown(x, y);
@@ -2972,6 +2966,24 @@ void Renderer::onTouchEvent(int pointerId, float x, float y, int action) {
     if (gameConsole && gameConsole->isVisible()) {
         gameConsole->onTouchEvent(x, y, action);
         return;
+    }
+
+    // Phase 9: UISystem handles all actions
+    if (uiSystem) {
+        bool uiHandled = false;
+        if (action == 0 || action == 5) {
+            uiHandled = uiSystem->onTouchDown(x, y, pointerId);
+        } else if (action == 1 || action == 6) {
+            uiHandled = uiSystem->onTouchUp(x, y, pointerId);
+        } else if (action == 2) {
+            uiHandled = uiSystem->onTouchMove(x, y, dx, dy, pointerId);
+        }
+        
+        if (uiHandled) {
+            LOGD("Touch consumed by UISystem");
+            return;
+        }
+        LOGD("UISystem did not handle touch");
     }
 
     // Only process legacy UI elements on ACTION_DOWN (0 or 5)
@@ -3250,6 +3262,10 @@ void Renderer::toggleDebugMenu() {
         }
         if (joystick) joystick->setVisible(!menuVisible);
     }
+}
+
+bool Renderer::isDebugMenuVisible() const {
+    return debugMenu && debugMenu->isVisible();
 }
 
 void Renderer::toggleNpcDebugVisualizer() {

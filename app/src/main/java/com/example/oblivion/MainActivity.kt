@@ -114,8 +114,55 @@ class MainActivity : Activity() {
                 glSurfaceView.renderMode = android.opengl.GLSurfaceView.RENDERMODE_CONTINUOUSLY
 
                 // Setup touch event forwarding
-                glSurfaceView.setOnTouchListener { _, event ->
+                glSurfaceView.setOnTouchListener { view, event ->
                     val actionMasked = event.actionMasked
+                    val rawX = event.rawX
+                    val rawY = event.rawY
+
+                    if (actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                        Log.d(TAG, "GLSurfaceView touch DOWN at ($rawX, $rawY)")
+                    }
+
+                    // When native DebugMenu is visible, forward all touches to native
+                    // (the Android debug button panel is hidden)
+                    val isNativeMenuVisible = gameRenderer?.nativeIsDebugMenuVisible() ?: false
+                    if (actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                        Log.d(TAG, "isNativeMenuVisible=$isNativeMenuVisible")
+                    }
+                    if (!isNativeMenuVisible) {
+                        // Check if touch is in the debug button area (top-left corner)
+                        val debugToggle = findViewById<Button>(R.id.btn_debug_toggle)
+                        if (debugToggle != null) {
+                            val loc = IntArray(2)
+                            debugToggle.getLocationOnScreen(loc)
+                            val toggleLeft = loc[0].toFloat()
+                            val toggleTop = loc[1].toFloat()
+                            val toggleRight = toggleLeft + debugToggle.width
+                            val toggleBottom = toggleTop + debugToggle.height
+
+                            // If debug panel is visible, also check panel area
+                            val panel = debugButtonPanel
+                            var inDebugArea = rawX >= toggleLeft && rawX <= toggleRight &&
+                                             rawY >= toggleTop && rawY <= toggleBottom
+
+                            if (!inDebugArea && panel != null && panel.visibility == View.VISIBLE) {
+                                val panelLoc = IntArray(2)
+                                panel.getLocationOnScreen(panelLoc)
+                                val panelLeft = panelLoc[0].toFloat()
+                                val panelTop = panelLoc[1].toFloat()
+                                val panelRight = panelLeft + panel.width
+                                val panelBottom = panelTop + panel.height
+                                inDebugArea = rawX >= panelLeft && rawX <= panelRight &&
+                                             rawY >= panelTop && rawY <= panelBottom
+                            }
+
+                            // Let Android handle debug button touches
+                            if (inDebugArea) {
+                                return@setOnTouchListener false
+                            }
+                        }
+                    }
+
                     val actionIndex = event.actionIndex
                     val pointerId: Int
                     val x: Float
@@ -161,6 +208,9 @@ class MainActivity : Activity() {
                         }
                     }
                     gameRenderer?.onTouchEvent(pointerId, x, y, action)
+                    if (actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                        Log.d(TAG, "Forwarded touch to native: ($x, $y) action=$action")
+                    }
                     true
                 }
 
@@ -188,6 +238,10 @@ class MainActivity : Activity() {
 
             // Toggle debug panel visibility
             debugToggleBtn.setOnClickListener {
+                // Close native DebugMenu if it's open
+                if (gameRenderer?.nativeIsDebugMenuVisible() == true) {
+                    gameRenderer?.nativeToggleDebugMenu()
+                }
                 isDebugPanelVisible = !isDebugPanelVisible
                 debugButtonPanel?.visibility = if (isDebugPanelVisible) View.VISIBLE else View.GONE
                 Log.d(TAG, "Debug panel ${if (isDebugPanelVisible) "shown" else "hidden"}")
@@ -224,10 +278,15 @@ class MainActivity : Activity() {
             }
 
             // Debug Menu toggle
-            findViewById<Button>(R.id.btn_debug_menu)?.setOnClickListener {
+            val menuBtn = findViewById<Button>(R.id.btn_debug_menu)
+            menuBtn?.setOnClickListener {
                 gameRenderer?.nativeToggleDebugMenu()
+                // Hide Android debug panel when native DebugMenu is open
+                debugButtonPanel?.visibility = View.GONE
+                isDebugPanelVisible = false
                 Log.d(TAG, "Toggled debug menu")
             }
+            Log.d(TAG, "Menu button found: ${menuBtn != null}, position: ${menuBtn?.left}, ${menuBtn?.top}, size: ${menuBtn?.width}x${menuBtn?.height}")
 
             Log.i(TAG, "Debug buttons setup complete")
         } catch (e: Exception) {

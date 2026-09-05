@@ -109,6 +109,11 @@ private:
         Button* pressedButton = nullptr;
     } touchState;
 
+    // Command feedback
+    std::string feedbackText;
+    float feedbackTimer;
+    glm::vec3 feedbackColor;
+
     // UI constants
     static constexpr float TAB_HEIGHT = 50.0f;
     static constexpr float BUTTON_HEIGHT = 48.0f;
