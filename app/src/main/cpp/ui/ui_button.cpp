@@ -207,15 +207,28 @@ void UIButton::renderLabel() const {
     glm::vec2 absPos = getAbsolutePosition();
 
     // Calculate accurate text dimensions
+    // getTextWidth returns sum of advanceX; renderText adds bearingX to the first glyph,
+    // so factor that in to keep the glyph bounds visually centered inside the button.
     float textWidth = textRenderer->getTextWidth(label, labelScale);
-    // TextRenderer uses Y as top of text area; FONT_SIZE=32 is the base height
-    float textHeight = 32.0f * labelScale;
+    float firstBearingX = textRenderer->getGlyphBearingX(label[0]) * labelScale;
+    float visibleWidth = textWidth + firstBearingX;
+
+    // Calculate vertical metrics from first character's glyph data.
+    // renderText places the glyph bitmap at y + (FONT_SIZE + bearingY) * scale.
+    // The glyph bitmap height is (y1 - y0) * ATLAS_HEIGHT * scale.
+    // So the glyph top relative to the y coordinate is: offsetY
+    // And the glyph bottom is: offsetY + height
+    // The center of the glyph vertically is: offsetY + height/2
+    // To center the glyph in the button, we want:
+    //   y + offsetY + height/2 = absPos.y + btnSize.y/2
+    // => y = absPos.y + btnSize.y/2 - offsetY - height/2
+    float glyphHeight = textRenderer->getGlyphHeight(label[0], labelScale);
+    float glyphOffsetY = textRenderer->getGlyphOffsetY(label[0], labelScale);
 
     // Center the glyph bounds within the button
     glm::vec2 btnSize = getSize();
-    float textX = absPos.x + (btnSize.x - textWidth) * 0.5f;
-    // Y: button top + (button height - text height) / 2
-    float textY = absPos.y + (btnSize.y - textHeight) * 0.5f;
+    float textX = absPos.x + (btnSize.x - visibleWidth) * 0.5f;
+    float textY = absPos.y + (btnSize.y * 0.5f) - glyphOffsetY - (glyphHeight * 0.5f);
 
     // Clamp to integer positions for sharper text
     textX = std::round(textX);

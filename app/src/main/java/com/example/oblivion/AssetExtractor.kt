@@ -1,13 +1,12 @@
 package com.example.oblivion
 
 import android.content.Context
-import android.os.Environment
 import android.util.Log
 import java.io.*
 
 /**
  * Asset extraction system for Oblivion Android.
- * Moves large game assets from APK to external storage for better performance.
+ * Moves large game assets from APK to app-specific external storage (no permission needed).
  */
 class AssetExtractor(private val context: Context) {
     
@@ -20,7 +19,7 @@ class AssetExtractor(private val context: Context) {
     
     private val externalDir: File
         get() = File(
-            Environment.getExternalStorageDirectory(),
+            context.getExternalFilesDir(null),
             ASSET_DIR
         )
     

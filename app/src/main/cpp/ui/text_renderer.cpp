@@ -443,6 +443,37 @@ TextRenderer::Glyph TextRenderer::getGlyph(unsigned int codepoint) {
     return fontData->glyphCache[32];  // ASCII 32 = space
 }
 
+float TextRenderer::getGlyphBearingX(char ch) const {
+    if (!fontData) return 0.0f;
+    unsigned int codepoint = (unsigned char)ch;
+    auto it = fontData->glyphCache.find(codepoint);
+    if (it != fontData->glyphCache.end()) {
+        return it->second.bearingX;
+    }
+    return 0.0f;
+}
+
+float TextRenderer::getGlyphHeight(char ch, float scale) const {
+    if (!fontData) return 0.0f;
+    unsigned int codepoint = (unsigned char)ch;
+    auto it = fontData->glyphCache.find(codepoint);
+    if (it == fontData->glyphCache.end()) return 0.0f;
+    const Glyph& g = it->second;
+    return (g.y1 - g.y0) * ATLAS_HEIGHT * scale;
+}
+
+float TextRenderer::getGlyphOffsetY(char ch, float scale) const {
+    // The y passed to renderText is interpreted as the baseline of the text area.
+    // Returns the y offset (downward) where the glyph bitmap is placed relative to
+    // that baseline. For most glyphs, this is (FONT_SIZE + bearingY) * scale.
+    if (!fontData) return 0.0f;
+    unsigned int codepoint = (unsigned char)ch;
+    auto it = fontData->glyphCache.find(codepoint);
+    if (it == fontData->glyphCache.end()) return FONT_SIZE * scale;
+    const Glyph& g = it->second;
+    return (FONT_SIZE + g.bearingY) * scale;
+}
+
 void TextRenderer::setScreenSize(int width, int height) {
     screenWidth = width;
     screenHeight = height;
