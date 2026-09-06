@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-09-01T03:00:00Z",
+  "lastUpdated": "2026-09-05T22:45:00Z",
   "entries": [
     {
       "content": "Oblivion.exe (Ghidra decompiled) - Gamebryo engine, compiled with VS2005/VS2008, Direct3D9. Init order: Renderer -> Shader System -> Sky -> TES -> TreeManager -> Menus -> Player -> Scripts -> Sound System -> Actor Locations -> LOD Land",
@@ -1625,10 +1625,25 @@
         "completed"
       ],
       "timestamp": "2026-09-01T03:00:00Z"
+    },
+    {
+      "timestamp": "2026-09-05T22:45:00Z",
+      "compressed": false,
+      "category": "decision",
+      "tags": [
+        "android",
+        "ui",
+        "kotlin",
+        "cpp",
+        "architecture"
+      ],
+      "id": "8580dbca-4dde-4ca8-839e-15fda8c79335",
+      "content": "AndroidアプリのUI開発にはKotlinを使用。C++はUIに不適切。理由: Android UIフレームワーク（Jetpack Compose、XML）はKotlin/Java前提、C++はJNI経由で複雑化。推奨構成: UI=Kotlin、ゲームロジック=C++(NDK)。Oblivion_Androidの既存パターンもこの構成。",
+      "priority": "high"
     }
   ],
   "metadata": {
-    "totalEntries": 113,
+    "totalEntries": 114,
     "compressedCount": 0,
     "sessionCount": 6
   }
