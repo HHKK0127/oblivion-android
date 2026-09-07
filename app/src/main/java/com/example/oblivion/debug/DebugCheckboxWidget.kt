@@ -39,7 +39,7 @@ class DebugCheckboxWidget(
         }
 
         widgetView = checkbox
-        return checkbox!!
+        return requireNotNull(checkbox) { "Checkbox not initialized" }
     }
 
     fun setChecked(checked: Boolean) {

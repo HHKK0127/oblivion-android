@@ -43,7 +43,7 @@ class DebugButtonWidget(
             }
         }
         widgetView = button
-        return button!!
+        return requireNotNull(button) { "Button not initialized" }
     }
 
     fun setGridLayoutPosition(row: Int, col: Int, width: Int) {

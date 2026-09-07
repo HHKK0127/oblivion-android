@@ -1654,10 +1654,37 @@
       "id": "68d4a414-20d6-48cb-a4ef-218dcd50ecb2",
       "timestamp": "2026-09-07T09:48:34.5806838+09:00",
       "compressed": false
+    },
+    {
+      "id": "bug-patterns-analysis",
+      "timestamp": "2026-09-07T16:08:00+09:00",
+      "category": "decision",
+      "priority": "high",
+      "content": "6 major bug patterns from 3 rounds of debug menu review: (1) Null safety (!!) - use let/?. /elvis, (2) Resource leaks (Handler/Thread/Bitmap/Process) - pair create/destroy, (3) Thread safety - UI ops main thread only, (4) Lifecycle - check isFinishing/isDestroyed, (5) State flag inconsistency - copy ref to local var before nulling, (6) View hierarchy safety - (parent as? ViewGroup)?.removeView. Rules: never use!!, always try-finally/use, ExecutorService over raw Thread, LifecycleObserver, no WeakReference.",
+      "tags": [
+        "coding-standards",
+        "kotlin",
+        "android",
+        "bug-patterns"
+      ],
+      "compressed": false
+    },
+    {
+      "id": "coding-templates",
+      "timestamp": "2026-09-07T16:08:00+09:00",
+      "category": "reference",
+      "priority": "high",
+      "content": "Kotlin templates: (1) Handler: stop->create->post. stop: removeCallbacks->null->removeCallbacksAndMessages. (2) ExecutorService: stop->create->submit. stop: cancel->shutdown->awaitTermination->null. (3) View safe: safePost with isAttachedToWindow. (4) Resource: AutoCloseable start/stop pair.",
+      "tags": [
+        "coding-standards",
+        "templates",
+        "kotlin"
+      ],
+      "compressed": false
     }
   ],
   "metadata": {
-    "totalEntries": 115,
+    "totalEntries": 117,
     "compressedCount": 0,
     "sessionCount": 6
   }

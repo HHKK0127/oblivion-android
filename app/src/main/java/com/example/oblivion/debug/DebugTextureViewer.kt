@@ -112,7 +112,7 @@ class DebugTextureViewer(
         container?.addView(refreshBtn)
 
         refresh()
-        return container!!
+        return requireNotNull(container) { "Container not initialized" }
     }
 
     fun refresh() {

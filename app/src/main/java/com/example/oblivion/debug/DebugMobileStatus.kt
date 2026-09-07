@@ -112,7 +112,7 @@ class DebugMobileStatus(
         container?.addView(systemSection)
 
         updateAll()
-        return container!!
+        return requireNotNull(container) { "Container not initialized" }
     }
 
     private fun createSection(title: String): LinearLayout {
@@ -263,7 +263,7 @@ class DebugMobileStatus(
                 handler.postDelayed(this, intervalMs)
             }
         }
-        handler.postDelayed(refreshRunnable!!, intervalMs)
+        refreshRunnable?.let { handler.postDelayed(it, intervalMs) }
     }
 
     /**

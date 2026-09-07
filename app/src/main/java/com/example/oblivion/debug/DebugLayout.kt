@@ -93,7 +93,7 @@ class DebugLayout(private val context: Context) {
             gridLayout?.addView(view)
         }
 
-        return gridLayout!!
+        return requireNotNull(gridLayout) { "GridLayout not initialized" }
     }
 
     /**

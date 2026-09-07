@@ -418,7 +418,7 @@ class DebugMenuPanel(
                         switchTab(tab)
                     }
                 }
-                tabContainer!!.addView(tabButton)
+                tabContainer?.addView(tabButton) ?: Log.e(TAG, "tabContainer null")
             }
 
             tabScroll.addView(tabContainer)
@@ -451,7 +451,7 @@ class DebugMenuPanel(
             // Populate buttons for current tab
             populateButtons(currentTab)
 
-            contentContainer!!.addView(buttonGrid)
+            contentContainer?.addView(buttonGrid) ?: Log.e(TAG, "contentContainer null")
             mainLayout.addView(contentContainer)
 
             // Close button at bottom

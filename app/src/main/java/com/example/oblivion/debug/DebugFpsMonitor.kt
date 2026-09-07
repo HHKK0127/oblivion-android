@@ -124,7 +124,8 @@ class DebugFpsMonitor {
             }
         }
 
-        choreographer?.postFrameCallback(frameCallback!!)
+        val callback = frameCallback ?: return
+        choreographer?.postFrameCallback(callback)
         Log.i(TAG, "FPS monitoring started")
     }
 

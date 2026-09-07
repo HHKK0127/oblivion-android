@@ -73,7 +73,7 @@ class DebugTabBar(
         }
 
         container?.addView(tabBar)
-        return container!!
+        return requireNotNull(container) { "Container not initialized" }
     }
 
     fun selectTab(index: Int) {

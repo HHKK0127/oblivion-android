@@ -144,7 +144,7 @@ class DebugAIViewer(
                 handler.postDelayed(this, intervalMs)
             }
         }
-        handler.postDelayed(refreshRunnable!!, intervalMs)
+        refreshRunnable?.let { handler.postDelayed(it, intervalMs) }
     }
 
     fun stopUpdating() {
@@ -185,6 +185,7 @@ class DebugAIViewer(
             // State distribution bar
             val stateCounts = states.groupingBy { it.state }.eachCount()
             val total = states.size.toFloat()
+            val viewWidth = width.toFloat() // View width captured once
             var x = 0f
             val barHeight = 30f
             val y = 10f
@@ -198,16 +199,16 @@ class DebugAIViewer(
             )
 
             stateCounts.forEach { (state, count) ->
-                val width = (count / total) * width
+                val barWidth = (count / total) * viewWidth
                 paint.color = colors[state.uppercase()] ?: Color.GRAY
-                canvas.drawRect(x, y, x + width, y + barHeight, paint)
+                canvas.drawRect(x, y, x + barWidth, y + barHeight, paint)
 
                 // Label
-                if (width > 50) {
+                if (barWidth > 50) {
                     textPaint.textSize = 18f
                     canvas.drawText("$state($count)", x + 4, y + barHeight - 6, textPaint)
                 }
-                x += width
+                x += barWidth
             }
 
             // Total count

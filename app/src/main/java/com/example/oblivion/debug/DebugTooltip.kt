@@ -87,7 +87,7 @@ class DebugTooltip(private val context: Context) {
 
         // Auto-hide after duration
         hideRunnable = Runnable { hide() }
-        handler.postDelayed(hideRunnable!!, durationMs)
+        hideRunnable?.let { handler.postDelayed(it, durationMs) }
     }
 
     /**
