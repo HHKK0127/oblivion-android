@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug menu layout: swipeable with tab overlay.
+     Activity handles gesture detection (swipe left = close).
+     Decor view intercepts touches for swipe detection. -->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#CC000000">
+
+    <!-- Debug menu content -->
+    <LinearLayout
+        android:layout_width="360dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:layout_gravity="end"
+        android:background="#FF1A1A1A"
+        android:padding="8dp">
+
+        <!-- Title bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingBottom="8dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Debug Menu v0.9.10"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <!-- Drag Mode toggle -->
+            <Button
+                android:id="@+id/btnDragMode"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Drag Mode: OFF"
+                android:textSize="11sp"
+                android:textColor="#FFFFFF"
+                android:background="#333333"
+                android:layout_marginEnd="4dp"
+                android:textAllCaps="false" />
+
+            <!-- Immediate Mode toggle -->
+            <Button
+                android:id="@+id/btnImmediateMode"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Immediate: OFF"
+                android:textSize="11sp"
+                android:textColor="#FFFFFF"
+                android:background="#333333"
+                android:layout_marginEnd="4dp"
+                android:textAllCaps="false" />
+        </LinearLayout>
+
+        <!-- Tab bar container (populated by DebugTabBar) -->
+        <HorizontalScrollView
+            android:id="@+id/tabBarContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:paddingBottom="4dp" />
+
+        <!-- Main content area with scroll -->
+        <ScrollView
+            android:id="@+id/contentScroll"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true">
+
+            <!-- GridLayout for widget grid (populated by DebugLayout) -->
+            <GridLayout
+                android:id="@+id/contentGrid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:useDefaultMargins="true" />
+        </ScrollView>
+    </LinearLayout>
+</FrameLayout>

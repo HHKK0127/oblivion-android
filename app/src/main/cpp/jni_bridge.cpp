@@ -818,3 +818,38 @@ Java_com_example_oblivion_GameRenderer_nativeExecuteCommand(
         return env->NewStringUTF("Error: GameConsole not available");
     }
 }
+
+// Get console output buffer as newline-joined string
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_example_oblivion_GameRenderer_nativeGetConsoleOutput(
+        JNIEnv* env,
+        [[maybe_unused]] jobject obj) {
+    if (!g_renderer) {
+        return env->NewStringUTF("");
+    }
+
+    auto* console = g_renderer->getGameConsole();
+    if (!console) {
+        return env->NewStringUTF("");
+    }
+
+    const auto& buffer = console->getOutputBuffer();
+    std::string result;
+    for (const auto& line : buffer) {
+        result += line + "\n";
+    }
+
+    return env->NewStringUTF(result.c_str());
+}
+
+// Check if native debug menu is currently visible
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_example_oblivion_GameRenderer_nativeIsDebugMenuVisible(
+        [[maybe_unused]] JNIEnv* env,
+        [[maybe_unused]] jobject obj) {
+    if (!g_renderer) {
+        return JNI_FALSE;
+    }
+
+    return g_renderer->isDebugMenuVisible() ? JNI_TRUE : JNI_FALSE;
+}

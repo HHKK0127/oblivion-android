@@ -171,4 +171,10 @@ class GameRenderer : GLSurfaceView.Renderer {
 
     // Exit request check
     external fun nativeIsExitRequested(): Boolean
+
+    // Get console output buffer as newline-joined string
+    external fun nativeGetConsoleOutput(): String
+
+    // Check if native debug menu is currently visible
+    external fun nativeIsDebugMenuVisible(): Boolean
 }
