@@ -56,7 +56,7 @@ class DebugSliderWidget(
 
         container.addView(labelRow)
 
-        // SeekBar
+        // SeekBar - support negative minValue correctly
         seekBar = SeekBar(context).apply {
             max = (maxValue - minValue).coerceAtLeast(0)
             progress = (currentValue - minValue).coerceIn(0, max)
@@ -108,7 +108,7 @@ class DebugSliderWidget(
 
     fun setValue(value: Int) {
         currentValue = value.coerceIn(minValue, maxValue)
-        seekBar?.progress = currentValue - minValue
+        seekBar?.progress = (currentValue - minValue).coerceIn(0, seekBar?.max ?: 0)
         valueLabel?.text = "$currentValue"
     }
 

@@ -2,6 +2,8 @@ package com.example.oblivion.debug
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 
 /**
@@ -27,10 +29,20 @@ class DebugStorage(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    // Batch processing support
+    private val handler = Handler(Looper.getMainLooper())
+    private val editorLock = Any()
+    private var pendingEditor: SharedPreferences.Editor? = null
+    private val batchRunnable = Runnable { flushPendingEditor() }
+
     /**
      * Save last active tab index. Uses commit() for persistence guarantee.
      */
     fun saveLastTab(tabIndex: Int) {
+        // Flush any pending batch edits first, then commit the important save
+        synchronized(editorLock) {
+            flushPendingEditor()
+        }
         prefs.edit().putInt(KEY_LAST_TAB, tabIndex).commit()
         Log.d(TAG, "Saved last tab: $tabIndex")
     }
@@ -58,10 +70,16 @@ class DebugStorage(context: Context) {
     }
 
     /**
-     * Save scroll offset for a specific tab. Uses apply() for frequent updates.
+     * Save scroll offset for a specific tab. Uses batch with handler.postDelayed.
      */
     fun saveScrollOffset(tabIndex: Int, offset: Float) {
-        prefs.edit().putFloat(KEY_SCROLL_OFFSET + tabIndex, offset).apply()
+        synchronized(editorLock) {
+            val editor = pendingEditor ?: prefs.edit().also { pendingEditor = it }
+            editor.putFloat(KEY_SCROLL_OFFSET + tabIndex, offset)
+            // Schedule batch flush
+            handler.removeCallbacks(batchRunnable)
+            handler.postDelayed(batchRunnable, 500L)
+        }
     }
 
     /**
@@ -164,9 +182,37 @@ class DebugStorage(context: Context) {
     }
 
     /**
+     * Flush pending batch editor (call from synchronized block).
+     */
+    private fun flushPendingEditor() {
+        synchronized(editorLock) {
+            pendingEditor?.let {
+                it.apply()
+                pendingEditor = null
+            }
+        }
+        handler.removeCallbacks(batchRunnable)
+    }
+
+    /**
+     * Cleanup resources. Flushes pending edits and removes handler callbacks.
+     */
+    fun cleanup() {
+        synchronized(editorLock) {
+            flushPendingEditor()
+        }
+        handler.removeCallbacksAndMessages(null)
+        Log.d(TAG, "Cleanup complete")
+    }
+
+    /**
      * Clear all stored debug preferences.
      */
     fun clearAll() {
+        synchronized(editorLock) {
+            pendingEditor = null
+        }
+        handler.removeCallbacks(batchRunnable)
         prefs.edit().clear().commit()
         Log.i(TAG, "Cleared all debug preferences")
     }

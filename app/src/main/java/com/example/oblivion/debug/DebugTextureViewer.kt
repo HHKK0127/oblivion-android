@@ -140,16 +140,18 @@ class DebugTextureViewer(
         private val padding = 4
 
         fun setTextures(newTextures: List<TextureInfo>) {
-            // Recycle old bitmaps before replacing
-            textures.forEach { tex ->
-                if (tex.preview != null && !tex.preview.isRecycled) {
-                    tex.preview.recycle()
+                    // Move oldTextures reference before assignment to recycle properly
+                    val oldTextures = textures
+                    textures = newTextures
+                    // Recycle old bitmaps after the new reference is in place
+                    oldTextures.forEach { tex ->
+                        if (tex.preview != null && !tex.preview.isRecycled) {
+                            tex.preview.recycle()
+                        }
+                    }
+                    applyFilter()
+                    invalidate()
                 }
-            }
-            textures = newTextures
-            applyFilter()
-            invalidate()
-        }
 
         fun setFilter(newFilter: String) {
             filter = newFilter

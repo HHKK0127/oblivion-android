@@ -94,15 +94,14 @@ class DebugGestureVisualizer(context: Context) : View(context) {
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        // Request parent not to intercept touch events
-        parent?.requestDisallowInterceptTouchEvent(true)
-
         val x = event.x
         val y = event.y
         val currentTime = System.currentTimeMillis()
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                // Request parent not to intercept touch events only on DOWN
+                parent?.requestDisallowInterceptTouchEvent(true)
                 touchDownX = x
                 touchDownY = y
                 touchDownTime = currentTime
@@ -153,11 +152,11 @@ class DebugGestureVisualizer(context: Context) : View(context) {
                 if (!longPressDetected) {
                     if (distance < touchSlop && duration < 300) {
                         // Tap detected - check for double tap
-                        if (currentTime - lastTapTime < DOUBLE_TAP_TIMEOUT_MS) {
+                        if (lastTapTime > 0 && currentTime - lastTapTime < DOUBLE_TAP_TIMEOUT_MS) {
                             addGestureLabel("DOUBLE TAP", x, y)
                             onGestureDetected?.invoke(GestureType.DOUBLE_TAP, x, y)
                             Log.d(TAG, "Double tap detected at ($x, $y)")
-                            lastTapTime = 0L
+                            lastTapTime = -1L
                         } else {
                             addGestureLabel("TAP", x, y)
                             onGestureDetected?.invoke(GestureType.TAP, x, y)

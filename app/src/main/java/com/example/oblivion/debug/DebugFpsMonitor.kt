@@ -64,10 +64,8 @@ class DebugFpsMonitor {
         }
 
         // Clean up any previous callback before creating a new one
-        frameCallback?.let { callback ->
-            choreographer?.removeFrameCallback(callback)
-        }
-        frameCallback = null
+        stopMonitoring()
+        Thread.sleep(50)
 
         choreographer = Choreographer.getInstance()
         isMonitoring = true
@@ -83,6 +81,9 @@ class DebugFpsMonitor {
             override fun doFrame(frameTimeNanos: Long) {
                 // Early return if monitoring was stopped
                 if (!isMonitoring) return
+
+                // Null-check choreographer for safety
+                val choreo = choreographer ?: return
 
                 if (lastFrameTimeNs > 0) {
                     val frameDurationNs = frameTimeNanos - lastFrameTimeNs
@@ -116,9 +117,9 @@ class DebugFpsMonitor {
 
                 lastFrameTimeNs = frameTimeNanos
 
-                // Request next frame callback
+                // Request next frame callback using local reference
                 if (isMonitoring) {
-                    choreographer?.postFrameCallback(this)
+                    choreo.postFrameCallback(this)
                 }
             }
         }
@@ -136,13 +137,18 @@ class DebugFpsMonitor {
             return
         }
 
+        // Set flag first to prevent re-posting from callback
         isMonitoring = false
 
-        // Safe callback removal with null checks
+        // Safe callback removal with null checks and try-catch
         val callback = frameCallback
         val choreo = choreographer
         if (callback != null && choreo != null) {
-            choreo.removeFrameCallback(callback)
+            try {
+                choreo.removeFrameCallback(callback)
+            } catch (e: Exception) {
+                Log.w(TAG, "Error removing frame callback: ${e.message}")
+            }
         }
         frameCallback = null
         choreographer = null

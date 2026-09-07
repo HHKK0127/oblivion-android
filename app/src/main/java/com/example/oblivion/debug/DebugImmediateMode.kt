@@ -102,9 +102,12 @@ class DebugImmediateMode {
      * Get or create widget state for the given ID.
      */
     private fun getOrCreateState(id: String): WidgetState {
-        return stateCache.getOrPut(id) {
+        val state = stateCache.getOrPut(id) {
             WidgetState().also { it.lastFrameId = currentFrameId }
         }
+        // Update lastFrameId for cache management
+        state.lastFrameId = currentFrameId
+        return state
     }
 
     /**
@@ -136,9 +139,9 @@ class DebugImmediateMode {
         }
         if (isTouchUp && state.clickConsumed && rect.contains(touchX, touchY)) {
             clicked = true
-            state.clickConsumed = false
         }
-        if (isTouchUp && state.clickConsumed) {
+        // Always reset clickConsumed on touch up
+        if (isTouchUp) {
             state.clickConsumed = false
         }
 
@@ -332,6 +335,20 @@ class DebugImmediateMode {
      * Get the current frame ID.
      */
     fun getFrameId(): Long = currentFrameId
+
+    /**
+     * Remove cached state for widgets not seen in recent frames.
+     * Call periodically to prevent unbounded cache growth.
+     */
+    fun cleanupUnusedStates(maxAge: Long = 120) {
+        val staleIds = stateCache.entries
+            .filter { currentFrameId - it.value.lastFrameId > maxAge }
+            .map { it.key }
+        staleIds.forEach { stateCache.remove(it) }
+        if (staleIds.isNotEmpty()) {
+            Log.d(TAG, "Cleaned up ${staleIds.size} stale widget states")
+        }
+    }
 
     /**
      * Clear all cached state. Call when the menu is hidden or recreated.

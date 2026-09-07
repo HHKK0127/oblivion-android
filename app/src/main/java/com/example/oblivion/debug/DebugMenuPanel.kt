@@ -321,15 +321,23 @@ class DebugMenuPanel(
      * Show the debug menu overlay.
      */
     fun show() {
-        if (isVisible) return
+        if (isVisible) {
+            // Already visible - bring to front
+            overlay?.bringToFront()
+            return
+        }
 
         activity.runOnUiThread {
             val rootLayout = activity.findViewById<FrameLayout>(android.R.id.content) ?: return@runOnUiThread
             val density = activity.resources.displayMetrics.density
 
-            // Remove existing overlay before adding new one
-            overlay?.let { existing ->
-                (existing.parent as? ViewGroup)?.removeView(existing)
+            // Try-catch around overlay removal
+            try {
+                overlay?.let { existing ->
+                    (existing.parent as? ViewGroup)?.removeView(existing)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error removing existing overlay: ${e.message}")
             }
             overlay = null
 
@@ -557,57 +565,69 @@ class DebugMenuPanel(
      * Populate buttons for the given tab.
      */
     private fun populateButtons(tab: Tab) {
-        val commands = tabContents[tab] ?: return
+            val commands = tabContents[tab] ?: emptyList()
         val density = activity.resources.displayMetrics.density
 
         buttonGrid?.let { grid ->
             grid.removeAllViews()
 
-            // Use 2-column grid layout
-            var currentRow: LinearLayout? = null
+                if (commands.isEmpty()) {
+                    // Fallback for null/empty commands
+                    val emptyLabel = TextView(activity).apply {
+                        text = "No commands for ${tab.label}"
+                        setTextColor(Color.GRAY)
+                        setPadding(dpToPx(8f, density), dpToPx(8f, density), 0, 0)
+                    }
+                    grid.addView(emptyLabel)
+                    return
+                }
 
-            for ((index, entry) in commands.withIndex()) {
-                if (index % 2 == 0) {
-                    currentRow = LinearLayout(activity).apply {
-                        orientation = LinearLayout.HORIZONTAL
+                // Use 2-column grid layout
+                // Declare currentRow outside loop so it persists between iterations
+                var currentRow: LinearLayout? = null
+
+                for ((index, entry) in commands.withIndex()) {
+                    if (index % 2 == 0) {
+                        currentRow = LinearLayout(activity).apply {
+                            orientation = LinearLayout.HORIZONTAL
+                            layoutParams = LinearLayout.LayoutParams(
+                                LinearLayout.LayoutParams.MATCH_PARENT,
+                                LinearLayout.LayoutParams.WRAP_CONTENT
+                            ).apply {
+                                bottomMargin = dpToPx(MARGIN_DP.toFloat(), density)
+                            }
+                        }
+                        grid.addView(currentRow)
+                    }
+
+                    val button = Button(activity).apply {
+                        text = entry.label
+                        textSize = 11f
+                        isAllCaps = false
+                        setPadding(dpToPx(4f, density), 0, dpToPx(4f, density), 0)
+                        setBackgroundColor(DebugThemedStyles.withAlpha(
+                            DebugThemedStyles.TabAccents.forTabIndex(tab.ordinal), 180))
+                        setTextColor(Color.WHITE)
                         layoutParams = LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.MATCH_PARENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT
+                            0,
+                            dpToPx(BUTTON_HEIGHT_DP.toFloat(), density),
+                            1f
                         ).apply {
-                            bottomMargin = dpToPx(MARGIN_DP.toFloat(), density)
+                            setMargins(
+                                dpToPx(MARGIN_DP.toFloat(), density), 0,
+                                dpToPx(MARGIN_DP.toFloat(), density), 0
+                            )
+                        }
+
+                        setOnClickListener {
+                            executeCommand(entry)
                         }
                     }
-                    grid.addView(currentRow)
+
+                    currentRow?.addView(button)
                 }
-
-                val button = Button(activity).apply {
-                    text = entry.label
-                    textSize = 11f
-                    isAllCaps = false
-                    setPadding(dpToPx(4f, density), 0, dpToPx(4f, density), 0)
-                    setBackgroundColor(DebugThemedStyles.withAlpha(
-                        DebugThemedStyles.TabAccents.forTabIndex(tab.ordinal), 180))
-                    setTextColor(Color.WHITE)
-                    layoutParams = LinearLayout.LayoutParams(
-                        0,
-                        dpToPx(BUTTON_HEIGHT_DP.toFloat(), density),
-                        1f
-                    ).apply {
-                        setMargins(
-                            dpToPx(MARGIN_DP.toFloat(), density), 0,
-                            dpToPx(MARGIN_DP.toFloat(), density), 0
-                        )
-                    }
-
-                    setOnClickListener {
-                        executeCommand(entry)
-                    }
-                }
-
-                currentRow?.addView(button)
             }
         }
-    }
 
     /**
      * Execute a command entry.
@@ -619,9 +639,14 @@ class DebugMenuPanel(
             lastCommandResult = result
             Log.i(TAG, "Command '${entry.command}' result: ${result ?: "null"}")
 
-            // Show brief toast feedback
-            activity.runOnUiThread {
-                Toast.makeText(activity, "${entry.label}: ${result ?: "OK"}", Toast.LENGTH_SHORT).show()
+            // Show brief toast feedback - check Looper and activity state
+            if (android.os.Looper.myLooper() != null &&
+                !activity.isFinishing && !activity.isDestroyed) {
+                activity.runOnUiThread {
+                    if (!activity.isFinishing && !activity.isDestroyed) {
+                        Toast.makeText(activity, "${entry.label}: ${result ?: "OK"}", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error executing command '${entry.command}': ${e.message}", e)

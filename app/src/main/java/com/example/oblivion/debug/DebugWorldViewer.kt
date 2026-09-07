@@ -115,19 +115,27 @@ class DebugWorldViewer(
 
     fun refresh() {
         currentCells = cellProvider?.invoke() ?: emptyList()
-        val dp4 = DebugButtonWidget.dpToPx(context, 4)
-        val dp2 = DebugButtonWidget.dpToPx(context, 2)
+            // Always call updateUI (even for empty list)
+            updateUI()
+        }
 
-        // Update stats
-        val totalObjects = currentCells.sumOf { it.objectCount }
-        val statsLabel = container?.findViewWithTag<TextView>("statsLabel")
-        statsLabel?.text = "Loaded: ${currentCells.size} cells | Objects: $totalObjects"
+        /**
+         * Update the UI based on currentCells. Called by refresh().
+         */
+        private fun updateUI() {
+            val dp4 = DebugButtonWidget.dpToPx(context, 4)
+            val dp2 = DebugButtonWidget.dpToPx(context, 2)
 
-        // Update minimap
-        minimapView?.setCells(currentCells)
+            // Update stats
+            val totalObjects = currentCells.sumOf { it.objectCount }
+            val statsLabel = container?.findViewWithTag<TextView>("statsLabel")
+            statsLabel?.text = "Loaded: ${currentCells.size} cells | Objects: $totalObjects"
+
+            // Update minimap
+            minimapView?.setCells(currentCells)
 
             // Update list - handle empty list case
-        cellListView?.removeAllViews()
+            cellListView?.removeAllViews()
             if (currentCells.isEmpty()) {
                 val emptyLabel = TextView(context).apply {
                     text = "No cells loaded"
@@ -140,36 +148,36 @@ class DebugWorldViewer(
             }
 
             currentCells.sortedByDescending { it.isActive }.forEach { cell ->
-            val row = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setBackgroundColor(if (cell.isActive) Color.parseColor("#333355") else Color.parseColor("#2A2A2A"))
-                setPadding(dp4, dp2, dp4, dp2)
-                val params = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    bottomMargin = dp2
+                val row = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setBackgroundColor(if (cell.isActive) Color.parseColor("#333355") else Color.parseColor("#2A2A2A"))
+                    setPadding(dp4, dp2, dp4, dp2)
+                    val params = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        bottomMargin = dp2
+                    }
+                    layoutParams = params
                 }
-                layoutParams = params
-            }
 
-            val color = when {
-                cell.isActive -> Color.parseColor("#4DFF4D")
-                cell.isLoaded -> Color.WHITE
-                cell.hasLOD -> Color.GRAY
-                else -> Color.DKGRAY
-            }
+                val color = when {
+                    cell.isActive -> Color.parseColor("#4DFF4D")
+                    cell.isLoaded -> Color.WHITE
+                    cell.hasLOD -> Color.GRAY
+                    else -> Color.DKGRAY
+                }
 
-            val info = TextView(context).apply {
-                text = "(${cell.x}, ${cell.y}) ${cell.name.ifEmpty { cell.type }} [${cell.type}] ${cell.objectCount}obj"
-                setTextColor(color)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            }
-            row.addView(info)
+                val info = TextView(context).apply {
+                    text = "(${cell.x}, ${cell.y}) ${cell.name.ifEmpty { cell.type }} [${cell.type}] ${cell.objectCount}obj"
+                    setTextColor(color)
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                }
+                row.addView(info)
 
-            cellListView?.addView(row)
+                cellListView?.addView(row)
+            }
         }
-    }
 
     /**
      * Minimap canvas that draws cell grid.
@@ -207,20 +215,25 @@ class DebugWorldViewer(
             paint.color = Color.parseColor("#222222")
             paint.style = Paint.Style.STROKE
             val gridRange = 15
-            for (i in -gridRange..gridRange) {
-                            val x = centerX + (i - playerX.toFloat()) * cellPixels
-                            val y = centerY + (i - playerY.toFloat()) * cellPixels
-                canvas.drawLine(x, 0f, x, height.toFloat(), paint)
-                canvas.drawLine(0f, y, width.toFloat(), y, paint)
-            }
+                        // Cast playerX/playerY to Float properly for arithmetic
+                        val playerXF: Float = playerX.toFloat()
+                        val playerYF: Float = playerY.toFloat()
+                        for (i in -gridRange..gridRange) {
+                            val iF: Float = i.toFloat()
+                            val x = centerX + (iF - playerXF) * cellPixels
+                            val y = centerY + (iF - playerYF) * cellPixels
+                            canvas.drawLine(x, 0f, x, height.toFloat(), paint)
+                            canvas.drawLine(0f, y, width.toFloat(), y, paint)
+                        }
 
-            // Draw cells
-            cells.forEach { cell ->
-                val screenX = centerX + (cell.x - playerX) * cellPixels
-                val screenY = centerY + (cell.y - playerY) * cellPixels
+                        // Draw cells
+                        cells.forEach { cell ->
+                            val screenX = centerX + (cell.x.toFloat() - playerXF) * cellPixels
+                            val screenY = centerY + (cell.y.toFloat() - playerYF) * cellPixels
 
-                if (screenX < -cellPixels || screenX > width + cellPixels ||
-                    screenY < -cellPixels || screenY > height + cellPixels) return@forEach
+                            // Skip cells outside screen bounds
+                            if (screenX < -cellPixels || screenX > width + cellPixels ||
+                                screenY < -cellPixels || screenY > height + cellPixels) return@forEach
 
                 val rect = RectF(
                     screenX, screenY,

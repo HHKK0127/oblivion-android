@@ -74,14 +74,23 @@ class DebugDragDrop(private val gridLayout: GridLayout) {
             val child = gridLayout.getChildAt(i)
             if (child == null) continue
 
-            child.setOnLongClickListener { view ->
+            val longClickListener = View.OnLongClickListener { view ->
                 startDrag(view)
                 true
             }
 
-            child.setOnDragListener { view, event ->
+            // Save any existing long-click listener before overwriting
+            if (child.hasOnLongClickListeners()) {
+                viewListeners[i] = null // caller's listener is replaced
+            }
+            viewListeners[i] = longClickListener
+            child.setOnLongClickListener(longClickListener)
+
+            val dragListener = View.OnDragListener { view, event ->
                 handleDragEvent(view, event)
             }
+            dragListeners[i] = dragListener
+            child.setOnDragListener(dragListener)
         }
     }
 
@@ -178,33 +187,38 @@ class DebugDragDrop(private val gridLayout: GridLayout) {
      */
     private data class SavedViewState(
         val tag: Any?,
-        val listener: View.OnLongClickListener?
+        val longClickListener: View.OnLongClickListener?,
+        val dragListener: View.OnDragListener?,
+        val isClickable: Boolean,
+        val isLongClickable: Boolean,
+        val alpha: Float
     )
 
+    // Track original listeners per child index to avoid reflection
+    private val viewListeners = mutableMapOf<Int, View.OnLongClickListener?>()
+    private val dragListeners = mutableMapOf<Int, View.OnDragListener?>()
+
     private fun saveViewState(view: View): SavedViewState {
+        val idx = gridLayout.indexOfChild(view)
         return SavedViewState(
             tag = view.tag,
-            listener = getOnLongClickListener(view)
+            longClickListener = viewListeners[idx],
+            dragListener = dragListeners[idx],
+            isClickable = view.isClickable,
+            isLongClickable = view.isLongClickable,
+            alpha = view.alpha
         )
     }
 
     private fun restoreViewState(view: View, state: SavedViewState) {
         view.tag = state.tag
-        state.listener?.let { view.setOnLongClickListener(it) }
+        state.longClickListener?.let { view.setOnLongClickListener(it) }
+        state.dragListener?.let { view.setOnDragListener(it) }
+        view.isClickable = state.isClickable
+        view.isLongClickable = state.isLongClickable
+        view.alpha = state.alpha
     }
 
-    /**
-     * Reflect into View to retrieve the OnLongClickListener field.
-     */
-    private fun getOnLongClickListener(view: View): View.OnLongClickListener? {
-        return try {
-            val field = View::class.java.getDeclaredField("mOnLongClickListener")
-            field.isAccessible = true
-            field.get(view) as? View.OnLongClickListener
-        } catch (e: Exception) {
-            null
-        }
-    }
     private fun applyOrder() {
         // Save state for each child before removal
         val savedStates = mutableListOf<SavedViewState>()
@@ -258,19 +272,21 @@ class DebugDragDrop(private val gridLayout: GridLayout) {
     }
 
     /**
-     * Clean up drag state. Resets alpha and isEnabled on all child views.
+     * Clean up drag state. Resets alpha, isEnabled, isClickable, and isLongClickable on all children.
      */
     private fun endDrag() {
         isDragging = false
 
-        // Reset alpha and isEnabled for all child views
+        // Reset alpha, isEnabled, isClickable, and isLongClickable for all child views
         for (i in 0 until gridLayout.childCount) {
-            val child = gridLayout.getChildAt(i)
-            child?.alpha = 1.0f
-            child?.isEnabled = true
+            val child = gridLayout.getChildAt(i) ?: continue
+            child.alpha = 1.0f
+            child.isEnabled = true
+            child.isClickable = true
+            child.isLongClickable = true
         }
 
-        Log.d(TAG, "Drag ended, alpha and isEnabled reset on all widgets")
+        Log.d(TAG, "Drag ended, alpha, isEnabled, isClickable, and isLongClickable reset on all widgets")
     }
 
     /**
@@ -308,8 +324,14 @@ class DebugDragDrop(private val gridLayout: GridLayout) {
             val child = gridLayout.getChildAt(i)
             child?.setOnLongClickListener(null)
             child?.setOnDragListener(null)
+            child?.alpha = 1.0f
+            child?.isEnabled = true
+            child?.isClickable = true
+            child?.isLongClickable = true
         }
         widgetOrder.clear()
+        viewListeners.clear()
+        dragListeners.clear()
         onOrderChanged = null
         isDragging = false
         Log.d(TAG, "Cleanup complete")

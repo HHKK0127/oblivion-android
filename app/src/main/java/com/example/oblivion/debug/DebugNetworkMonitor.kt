@@ -5,6 +5,10 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.TimeUnit
 
 /**
  * Network monitoring with ICMP ping via /system/bin/ping and HTTP fallback.
@@ -37,7 +41,8 @@ class DebugNetworkMonitor {
     // Monitoring state
     @Volatile
     private var isMonitoring = false
-    private var monitorThread: Thread? = null
+        private var monitorExecutor: ExecutorService? = null
+        private var monitorFuture: Future<*>? = null
 
     // History
     private val latencyHistory = mutableListOf<LatencyReading>()
@@ -55,7 +60,10 @@ class DebugNetworkMonitor {
         }
 
         isMonitoring = true
-        monitorThread = Thread({
+        monitorExecutor = Executors.newSingleThreadExecutor { r ->
+            Thread(r, "DebugNetworkMonitor").apply { isDaemon = true }
+        }
+        monitorFuture = monitorExecutor?.submit {
             Log.i(TAG, "Network monitoring thread started")
             while (isMonitoring && !Thread.currentThread().isInterrupted) {
                 try {
@@ -83,9 +91,6 @@ class DebugNetworkMonitor {
                 }
             }
             Log.i(TAG, "Network monitoring thread ended")
-        }, "DebugNetworkMonitor").apply {
-            isDaemon = true
-            start()
         }
     }
 
@@ -96,13 +101,18 @@ class DebugNetworkMonitor {
         if (!isMonitoring) return
 
         isMonitoring = false
-        monitorThread?.interrupt()
+        monitorFuture?.cancel(true)
+        monitorFuture = null
+        monitorExecutor?.shutdown()
         try {
-            monitorThread?.join(POLL_INTERVAL_MS)
+            monitorExecutor?.awaitTermination(POLL_INTERVAL_MS * 2, TimeUnit.MILLISECONDS)
         } catch (e: InterruptedException) {
-            Log.d(TAG, "Thread join interrupted")
+            Log.d(TAG, "Executor awaitTermination interrupted")
         }
-        monitorThread = null
+        if (monitorExecutor?.isShutdown == false) {
+            monitorExecutor?.shutdownNow()
+        }
+        monitorExecutor = null
         Log.i(TAG, "Network monitoring stopped")
     }
 
@@ -144,23 +154,29 @@ class DebugNetworkMonitor {
      */
     private fun icmpPing(host: String): Pair<Boolean, Long> {
         var process: Process? = null
+        var inputReader: BufferedReader? = null
+        var errorReader: BufferedReader? = null
         try {
             val command = arrayOf("/system/bin/ping", "-c", "1", "-W", "${PING_TIMEOUT_MS / 1000}", host)
             process = Runtime.getRuntime().exec(command)
 
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
+            inputReader = BufferedReader(InputStreamReader(process.inputStream))
+            errorReader = BufferedReader(InputStreamReader(process.errorStream))
             val startTime = System.currentTimeMillis()
 
             // Read ping output
             var line: String?
             var latency = -1L
-            while (reader.readLine().also { line = it } != null) {
+            while (inputReader.readLine().also { line = it } != null) {
                 // Parse latency from "time=XX.X ms" format
                 val timeMatch = Regex("time=(\\d+\\.?\\d*)\\s*ms").find(line ?: "")
                 if (timeMatch != null) {
                     latency = timeMatch.groupValues[1].toLongOrNull() ?: -1L
                 }
             }
+
+            // Drain error stream to prevent process blocking
+            while (errorReader.readLine() != null) { }
 
             val exitCode = process.waitFor()
             val elapsed = System.currentTimeMillis() - startTime
@@ -174,6 +190,8 @@ class DebugNetworkMonitor {
             Log.d(TAG, "ICMP ping to $host failed: ${e.message}")
             return Pair(false, -1L)
         } finally {
+            try { inputReader?.close() } catch (_: Exception) {}
+            try { errorReader?.close() } catch (_: Exception) {}
             process?.destroy()
         }
     }
@@ -280,12 +298,6 @@ class DebugNetworkMonitor {
         stopMonitoring()
         clearHistory()
         onUpdate = null
-        try {
-            monitorThread?.join(PING_TIMEOUT_MS.toLong() * 2L)
-        } catch (e: InterruptedException) {
-            Log.d(TAG, "Thread join interrupted during cleanup")
-        }
-        monitorThread = null
         Log.d(TAG, "Cleanup complete")
     }
 }
