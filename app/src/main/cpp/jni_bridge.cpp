@@ -791,3 +791,30 @@ Java_com_example_oblivion_GameRenderer_nativeIsExitRequested(
     }
     return JNI_FALSE;
 }
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_example_oblivion_GameRenderer_nativeExecuteCommand(
+        JNIEnv* env,
+        [[maybe_unused]] jobject obj,
+        jstring command) {
+    if (!g_renderer) {
+        return env->NewStringUTF("Error: Renderer not initialized");
+    }
+
+    const char* commandStr = env->GetStringUTFChars(command, nullptr);
+    if (!commandStr) {
+        return env->NewStringUTF("Error: Null command");
+    }
+
+    LOGI("nativeExecuteCommand: %s", commandStr);
+
+    auto* console = g_renderer->getGameConsole();
+    if (console) {
+        console->executeCommand(std::string(commandStr));
+        env->ReleaseStringUTFChars(command, commandStr);
+        return env->NewStringUTF("OK");
+    } else {
+        env->ReleaseStringUTFChars(command, commandStr);
+        return env->NewStringUTF("Error: GameConsole not available");
+    }
+}

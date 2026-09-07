@@ -166,6 +166,9 @@ class GameRenderer : GLSurfaceView.Renderer {
     external fun nativeToggleAllDebug()
     external fun nativeToggleDebugMenu()
 
+    // Execute a console command via native debug system
+    external fun nativeExecuteCommand(command: String): String
+
     // Exit request check
     external fun nativeIsExitRequested(): Boolean
 }

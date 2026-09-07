@@ -11,6 +11,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import java.io.IOException
 import java.io.File
+import com.example.oblivion.debug.DebugMenuPanel
 
 class MainActivity : Activity() {
 
@@ -18,10 +19,11 @@ class MainActivity : Activity() {
     private var gameRenderer: GameRenderer? = null
     private var mediaPlayer: MediaPlayer? = null
     private var soundPool: SoundPool? = null
-    private val loadedSounds = mutableMapOf<String, Int>() // filename → soundId
+    private val loadedSounds = mutableMapOf<String, Int>() // filename -> soundId
     private var spLoadListener: SoundPool.OnLoadCompleteListener? = null
     private var debugButtonPanel: LinearLayout? = null
     private var isDebugPanelVisible = false
+    private var debugMenuPanel: DebugMenuPanel? = null
 
     companion object {
         private const val TAG = "MainActivity"
@@ -175,6 +177,9 @@ class MainActivity : Activity() {
             // Setup debug buttons
             setupDebugButtons()
 
+            // Setup Kotlin debug menu panel
+            setupDebugMenuPanel()
+
             Log.i(TAG, "ContentView set successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Exception in initializeGame: ${e.message}", e)
@@ -232,6 +237,34 @@ class MainActivity : Activity() {
             Log.i(TAG, "Debug buttons setup complete")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to setup debug buttons: ${e.message}", e)
+        }
+    }
+
+    private fun setupDebugMenuPanel() {
+        try {
+            // Initialize the Kotlin debug menu panel with JNI command executor
+            debugMenuPanel = DebugMenuPanel(this) { command ->
+                try {
+                    val result = gameRenderer?.nativeExecuteCommand(command) ?: "No renderer"
+                    Log.d(TAG, "Debug command '$command' -> $result")
+                    result
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to execute debug command '$command': ${e.message}", e)
+                    "Error: ${e.message}"
+                }
+            }
+            debugMenuPanel?.initialize()
+
+            // Setup floating debug FAB button
+            val debugFab = findViewById<Button>(R.id.btn_debug_fab)
+            debugFab?.setOnClickListener {
+                debugMenuPanel?.toggle()
+                Log.d(TAG, "Debug menu toggled via FAB")
+            }
+
+            Log.i(TAG, "Kotlin debug menu panel setup complete")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to setup debug menu panel: ${e.message}", e)
         }
     }
 
@@ -294,8 +327,10 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.i(TAG, "onDestroy - cleaning up audio")
+        Log.i(TAG, "onDestroy - cleaning up audio and debug")
         cleanupAudio()
+        debugMenuPanel?.cleanup()
+        debugMenuPanel = null
         if (instance === this) {
             instance = null
         }

@@ -86,4 +86,18 @@
         android:textColor="#FFFFFF"
         android:alpha="0.5" />
 
+    <!-- Debug Menu FAB - Bottom-right corner -->
+    <Button
+        android:id="@+id/btn_debug_fab"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:text="BUG"
+        android:textSize="9sp"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#BB4444"
+        android:elevation="8dp" />
+
 </FrameLayout>
