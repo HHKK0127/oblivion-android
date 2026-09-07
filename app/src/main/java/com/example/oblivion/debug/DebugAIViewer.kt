@@ -80,7 +80,12 @@ class DebugAIViewer(
     }
 
     private fun refresh() {
-        val states = npcStateProvider?.invoke() ?: emptyList()
+        val states = try {
+            npcStateProvider?.invoke() ?: emptyList()
+        } catch (e: Exception) {
+            android.util.Log.e("DebugAIViewer", "Error fetching NPC states", e)
+            emptyList()
+        }
 
         // Update canvas
         canvasView?.updateStates(states)
