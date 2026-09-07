@@ -65,7 +65,12 @@ class DebugFpsMonitor {
 
         // Clean up any previous callback before creating a new one
         stopMonitoring()
-        Thread.sleep(50)
+        try {
+            Thread.sleep(50)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            return
+        }
 
         choreographer = Choreographer.getInstance()
         isMonitoring = true

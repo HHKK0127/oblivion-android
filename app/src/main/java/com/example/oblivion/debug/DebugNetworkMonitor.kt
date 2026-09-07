@@ -101,20 +101,22 @@ class DebugNetworkMonitor {
         if (!isMonitoring) return
 
         isMonitoring = false
-        monitorFuture?.cancel(true)
-        monitorFuture = null
-        monitorExecutor?.shutdown()
-        try {
-            monitorExecutor?.awaitTermination(POLL_INTERVAL_MS * 2, TimeUnit.MILLISECONDS)
-        } catch (e: InterruptedException) {
-            Log.d(TAG, "Executor awaitTermination interrupted")
+            // Capture executor reference locally to avoid race with concurrent cleanup
+            val executor = monitorExecutor
+            monitorExecutor = null
+            monitorFuture?.cancel(true)
+            monitorFuture = null
+            executor?.shutdown()
+            try {
+                executor?.awaitTermination(POLL_INTERVAL_MS * 2, TimeUnit.MILLISECONDS)
+            } catch (e: InterruptedException) {
+                Log.d(TAG, "Executor awaitTermination interrupted")
         }
-        if (monitorExecutor?.isShutdown == false) {
-            monitorExecutor?.shutdownNow()
+            if (executor?.isShutdown == false) {
+                executor?.shutdownNow()
+            }
+            Log.i(TAG, "Network monitoring stopped")
         }
-        monitorExecutor = null
-        Log.i(TAG, "Network monitoring stopped")
-    }
 
     /**
      * Measure latency using ICMP ping and HTTP fallback.
