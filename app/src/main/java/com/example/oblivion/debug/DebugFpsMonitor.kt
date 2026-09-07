@@ -63,6 +63,12 @@ class DebugFpsMonitor {
             return
         }
 
+        // Clean up any previous callback before creating a new one
+        frameCallback?.let { callback ->
+            choreographer?.removeFrameCallback(callback)
+        }
+        frameCallback = null
+
         choreographer = Choreographer.getInstance()
         isMonitoring = true
         frameCount = 0L
@@ -132,12 +138,13 @@ class DebugFpsMonitor {
 
         isMonitoring = false
 
-        // Remove pending callback first
-        frameCallback?.let { callback ->
-            choreographer?.removeFrameCallback(callback)
+        // Safe callback removal with null checks
+        val callback = frameCallback
+        val choreo = choreographer
+        if (callback != null && choreo != null) {
+            choreo.removeFrameCallback(callback)
         }
         frameCallback = null
-
         choreographer = null
         Log.i(TAG, "FPS monitoring stopped. Total frames: $frameCount, Jank: $jankCount")
     }

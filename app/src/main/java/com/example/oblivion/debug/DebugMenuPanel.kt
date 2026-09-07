@@ -13,7 +13,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
-import java.lang.ref.WeakReference
+
 
 /**
  * Main debug menu panel replacing the C++ debug_menu.
@@ -58,7 +58,7 @@ class DebugMenuPanel(
     private val tabContents = mutableMapOf<Tab, List<CommandEntry>>()
 
     // UI components
-    private var overlayRef: WeakReference<FrameLayout>? = null
+    private var overlay: FrameLayout? = null
     private var tabContainer: LinearLayout? = null
     private var contentContainer: ScrollView? = null
     private var buttonGrid: LinearLayout? = null
@@ -327,8 +327,14 @@ class DebugMenuPanel(
             val rootLayout = activity.findViewById<FrameLayout>(android.R.id.content) ?: return@runOnUiThread
             val density = activity.resources.displayMetrics.density
 
+            // Remove existing overlay before adding new one
+            overlay?.let { existing ->
+                (existing.parent as? ViewGroup)?.removeView(existing)
+            }
+            overlay = null
+
             // Create overlay container
-            val overlay = FrameLayout(activity).apply {
+            val newOverlay = FrameLayout(activity).apply {
                 layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
@@ -456,10 +462,10 @@ class DebugMenuPanel(
             }
             mainLayout.addView(closeButton)
 
-            overlay.addView(mainLayout)
-            rootLayout.addView(overlay)
+            newOverlay.addView(mainLayout)
+            rootLayout.addView(newOverlay)
 
-            overlayRef = WeakReference(overlay)
+            overlay = newOverlay
             isVisible = true
             storage.savePanelVisible(true)
             Log.i(TAG, "Debug menu shown")
@@ -480,12 +486,11 @@ class DebugMenuPanel(
             }
 
             // Clean up overlay
-            overlayRef?.get()?.let { overlay ->
-                val parent = overlay.parent as? ViewGroup
-                parent?.removeView(overlay)
+            overlay?.let { existing ->
+                val parent = existing.parent as? ViewGroup
+                parent?.removeView(existing)
             }
-            overlayRef?.clear()
-            overlayRef = null
+            overlay = null
             tabContainer = null
             contentContainer = null
             buttonGrid = null

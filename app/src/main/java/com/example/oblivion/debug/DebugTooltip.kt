@@ -47,6 +47,16 @@ class DebugTooltip(private val context: Context) {
         val dp8 = DebugButtonWidget.dpToPx(context, 8)
         val dp12 = DebugButtonWidget.dpToPx(context, 12)
 
+        // Check if anchor view is laid out before calculating position
+        val location = IntArray(2)
+        val parentLocation = IntArray(2)
+        if (!anchor.isLaidOut) {
+            anchor.post { show(anchor, text, durationMs) }
+            return
+        }
+        anchor.getLocationOnScreen(location)
+        parent.getLocationOnScreen(parentLocation)
+
         tooltipView = TextView(context).apply {
             this.text = text
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
@@ -61,13 +71,8 @@ class DebugTooltip(private val context: Context) {
             background = bg
 
             // Position below the anchor
-            val location = IntArray(2)
-            anchor.getLocationOnScreen(location)
-            val parentLocation = IntArray(2)
-            parent.getLocationOnScreen(parentLocation)
-
-            val x = location[0] - parentLocation[0]
-            val y = location[1] - parentLocation[1] + anchor.height + dp8
+            val x = (location[0] - parentLocation[0]).coerceAtLeast(0)
+            val y = (location[1] - parentLocation[1] + anchor.height + dp8).coerceAtLeast(0)
 
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,

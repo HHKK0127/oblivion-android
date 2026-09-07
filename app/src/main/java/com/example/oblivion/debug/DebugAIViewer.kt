@@ -132,6 +132,10 @@ class DebugAIViewer(
     fun startUpdating(intervalMs: Long = 2000) {
         if (isUpdating) return
         isUpdating = true
+
+        // Remove any existing runnable before creating a new one
+        refreshRunnable?.let { handler.removeCallbacks(it) }
+
         refreshRunnable = object : Runnable {
             override fun run() {
                 if (!isUpdating) return
@@ -143,6 +147,7 @@ class DebugAIViewer(
     }
 
     fun stopUpdating() {
+        // Set flag first to prevent rescheduling from within a pending callback
         isUpdating = false
         refreshRunnable?.let { handler.removeCallbacks(it) }
         refreshRunnable = null

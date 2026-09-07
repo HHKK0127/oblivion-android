@@ -140,6 +140,12 @@ class DebugTextureViewer(
         private val padding = 4
 
         fun setTextures(newTextures: List<TextureInfo>) {
+            // Recycle old bitmaps before replacing
+            textures.forEach { tex ->
+                if (tex.preview != null && !tex.preview.isRecycled) {
+                    tex.preview.recycle()
+                }
+            }
             textures = newTextures
             applyFilter()
             invalidate()
@@ -152,6 +158,19 @@ class DebugTextureViewer(
         }
 
         fun getFilteredCount(): Int = filteredTextures.size
+
+        /**
+         * Cleanup method to recycle Bitmap resources.
+         */
+        fun cleanup() {
+            textures.forEach { tex ->
+                if (tex.preview != null && !tex.preview.isRecycled) {
+                    tex.preview.recycle()
+                }
+            }
+            textures = emptyList()
+            filteredTextures = emptyList()
+        }
 
         private fun applyFilter() {
             filteredTextures = if (filter.isEmpty()) {

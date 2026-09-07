@@ -119,7 +119,7 @@ class DebugImmediateMode {
 
         // Draw button background
         rect.set(cursorX, cursorY, cursorX + buttonWidth, cursorY + buttonHeight)
-        val isPressed = state.clickConsumed && !state.clickConsumed
+        val isPressed = state.clickConsumed && isTouchDown
         val paint = if (state.clickConsumed) buttonPressedPaint else buttonPaint
         canvas.drawRoundRect(rect, CORNER_RADIUS, CORNER_RADIUS, paint)
 

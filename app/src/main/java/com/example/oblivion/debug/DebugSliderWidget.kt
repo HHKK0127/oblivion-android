@@ -58,8 +58,8 @@ class DebugSliderWidget(
 
         // SeekBar
         seekBar = SeekBar(context).apply {
-            max = maxValue - minValue
-            progress = currentValue - minValue
+            max = (maxValue - minValue).coerceAtLeast(0)
+            progress = (currentValue - minValue).coerceIn(0, max)
             setPadding(dp4, dp4, dp4, dp4)
 
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {

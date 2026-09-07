@@ -34,8 +34,11 @@ abstract class BaseDebugWidget(
     override var enabled: Boolean = true
         set(value) {
             field = value
-            getView()?.isEnabled = value
-            getView()?.alpha = if (value) 1.0f else 0.5f
+            // Use post to ensure UI updates happen on the UI thread
+            getView()?.post {
+                getView()?.isEnabled = value
+                getView()?.alpha = if (value) 1.0f else 0.5f
+            }
         }
 
     protected var widgetView: View? = null
@@ -43,9 +46,19 @@ abstract class BaseDebugWidget(
     override fun getView(): View? = widgetView
 
     override fun update() {
-        widgetView?.let {
-            it.isEnabled = enabled
-            it.alpha = if (enabled) 1.0f else 0.5f
+        // Use post to ensure UI thread safety
+        widgetView?.let { view ->
+            view.post {
+                view.isEnabled = enabled
+                view.alpha = if (enabled) 1.0f else 0.5f
+            }
         }
+    }
+
+    /**
+     * Cleanup widget resources. Override in subclasses if needed.
+     */
+    open fun cleanup() {
+        widgetView = null
     }
 }

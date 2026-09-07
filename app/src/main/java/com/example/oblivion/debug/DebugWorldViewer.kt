@@ -126,9 +126,20 @@ class DebugWorldViewer(
         // Update minimap
         minimapView?.setCells(currentCells)
 
-        // Update list
+            // Update list - handle empty list case
         cellListView?.removeAllViews()
-        currentCells.sortedByDescending { it.isActive }.forEach { cell ->
+            if (currentCells.isEmpty()) {
+                val emptyLabel = TextView(context).apply {
+                    text = "No cells loaded"
+                    setTextColor(Color.GRAY)
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                    setPadding(dp4, dp2, dp4, dp2)
+                }
+                cellListView?.addView(emptyLabel)
+                return
+            }
+
+            currentCells.sortedByDescending { it.isActive }.forEach { cell ->
             val row = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 setBackgroundColor(if (cell.isActive) Color.parseColor("#333355") else Color.parseColor("#2A2A2A"))
@@ -197,8 +208,8 @@ class DebugWorldViewer(
             paint.style = Paint.Style.STROKE
             val gridRange = 15
             for (i in -gridRange..gridRange) {
-                val x = centerX + (i - playerX % 1) * cellPixels
-                val y = centerY + (i - playerY % 1) * cellPixels
+                            val x = centerX + (i - playerX.toFloat()) * cellPixels
+                            val y = centerY + (i - playerY.toFloat()) * cellPixels
                 canvas.drawLine(x, 0f, x, height.toFloat(), paint)
                 canvas.drawLine(0f, y, width.toFloat(), y, paint)
             }

@@ -2,7 +2,9 @@ package com.example.oblivion.debug
 
 import android.util.Log
 import java.io.File
-import java.io.RandomAccessFile
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.FileInputStream
 
 /**
  * Thermal monitoring by reading from /sys/class/thermal/ sysfs interface.
@@ -181,12 +183,12 @@ class DebugThermalMonitor {
     }
 
     /**
-     * Read a sysfs file safely using RandomAccessFile.
+     * Read a sysfs file safely using BufferedReader.
      */
     private fun readSysfsFile(path: String): String? {
         return try {
-            RandomAccessFile(path, "r").use { raf ->
-                raf.readLine()
+            BufferedReader(InputStreamReader(FileInputStream(path), Charsets.UTF_8)).use { reader ->
+                reader.readLine()
             }
         } catch (e: Exception) {
             Log.d(TAG, "Failed to read sysfs file: $path - ${e.message}")
@@ -213,10 +215,13 @@ class DebugThermalMonitor {
     }
 
     /**
-     * Get the current maximum temperature across all zones.
+     * Get the current maximum temperature across all zones (thread-safe).
      */
     fun getMaxTemperature(): Float {
-        return getLatest()?.maxTemperature ?: 0f
+        val snapshot = synchronized(thermalHistory) {
+            thermalHistory.lastOrNull()
+        }
+        return snapshot?.maxTemperature ?: 0f
     }
 
     /**
@@ -247,6 +252,12 @@ class DebugThermalMonitor {
         stopMonitoring()
         clearHistory()
         onUpdate = null
+        try {
+            monitorThread?.join(POLL_INTERVAL_MS)
+        } catch (e: InterruptedException) {
+            Log.d(TAG, "Thread join interrupted during cleanup")
+        }
+        monitorThread = null
         Log.d(TAG, "Cleanup complete")
     }
 }

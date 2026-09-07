@@ -97,6 +97,11 @@ class DebugNetworkMonitor {
 
         isMonitoring = false
         monitorThread?.interrupt()
+        try {
+            monitorThread?.join(POLL_INTERVAL_MS)
+        } catch (e: InterruptedException) {
+            Log.d(TAG, "Thread join interrupted")
+        }
         monitorThread = null
         Log.i(TAG, "Network monitoring stopped")
     }
@@ -275,6 +280,12 @@ class DebugNetworkMonitor {
         stopMonitoring()
         clearHistory()
         onUpdate = null
+        try {
+            monitorThread?.join(PING_TIMEOUT_MS.toLong() * 2L)
+        } catch (e: InterruptedException) {
+            Log.d(TAG, "Thread join interrupted during cleanup")
+        }
+        monitorThread = null
         Log.d(TAG, "Cleanup complete")
     }
 }

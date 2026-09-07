@@ -51,7 +51,7 @@ class DebugGestureVisualizer(context: Context) : View(context) {
     private var touchDownX = 0f
     private var touchDownY = 0f
     private var touchDownTime = 0L
-    private var lastTapTime = 0L
+    private var lastTapTime = -1L
     private var longPressRunnable: Runnable? = null
     private var longPressDetected = false
 
@@ -95,7 +95,7 @@ class DebugGestureVisualizer(context: Context) : View(context) {
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         // Request parent not to intercept touch events
-        parent.requestDisallowInterceptTouchEvent(true)
+        parent?.requestDisallowInterceptTouchEvent(true)
 
         val x = event.x
         val y = event.y

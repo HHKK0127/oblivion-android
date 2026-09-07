@@ -174,20 +174,55 @@ class DebugDragDrop(private val gridLayout: GridLayout) {
     }
 
     /**
-     * Apply the current widget order to the grid layout.
+     * Preserve tag and listener state before applyOrder clears and re-adds views.
      */
+    private data class SavedViewState(
+        val tag: Any?,
+        val listener: View.OnLongClickListener?
+    )
+
+    private fun saveViewState(view: View): SavedViewState {
+        return SavedViewState(
+            tag = view.tag,
+            listener = getOnLongClickListener(view)
+        )
+    }
+
+    private fun restoreViewState(view: View, state: SavedViewState) {
+        view.tag = state.tag
+        state.listener?.let { view.setOnLongClickListener(it) }
+    }
+
+    /**
+     * Reflect into View to retrieve the OnLongClickListener field.
+     */
+    private fun getOnLongClickListener(view: View): View.OnLongClickListener? {
+        return try {
+            val field = View::class.java.getDeclaredField("mOnLongClickListener")
+            field.isAccessible = true
+            field.get(view) as? View.OnLongClickListener
+        } catch (e: Exception) {
+            null
+        }
+    }
     private fun applyOrder() {
-        // Store children in the new order
+        // Save state for each child before removal
+        val savedStates = mutableListOf<SavedViewState>()
         val children = mutableListOf<View>()
         for (i in 0 until gridLayout.childCount) {
-            gridLayout.getChildAt(i)?.let { children.add(it) }
+            gridLayout.getChildAt(i)?.let { view ->
+                savedStates.add(saveViewState(view))
+                children.add(view)
+            }
         }
 
         // Re-add children in the specified order
         gridLayout.removeAllViews()
         for (orderIndex in widgetOrder) {
             if (orderIndex in 0 until children.size) {
-                gridLayout.addView(children[orderIndex])
+                val child = children[orderIndex]
+                restoreViewState(child, savedStates[orderIndex])
+                gridLayout.addView(child)
             }
         }
     }
@@ -223,17 +258,19 @@ class DebugDragDrop(private val gridLayout: GridLayout) {
     }
 
     /**
-     * Clean up drag state. Resets alpha on all views.
+     * Clean up drag state. Resets alpha and isEnabled on all child views.
      */
     private fun endDrag() {
         isDragging = false
 
-        // Reset alpha on all child views
+        // Reset alpha and isEnabled for all child views
         for (i in 0 until gridLayout.childCount) {
-            gridLayout.getChildAt(i)?.alpha = 1.0f
+            val child = gridLayout.getChildAt(i)
+            child?.alpha = 1.0f
+            child?.isEnabled = true
         }
 
-        Log.d(TAG, "Drag ended, alpha reset on all widgets")
+        Log.d(TAG, "Drag ended, alpha and isEnabled reset on all widgets")
     }
 
     /**
