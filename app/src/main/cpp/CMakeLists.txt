@@ -131,12 +131,7 @@ add_library(native-lib SHARED
     ui/quest_ui.cpp
     ui/inventory_ui.cpp
     ui/text_renderer.cpp
-    ui/debug_hud.cpp
     ui/game_console.cpp
-    ui/debug_menu.cpp
-    ui/npc_debug_visualizer.cpp
-    ui/world_debug_info.cpp
-    ui/performance_graph.cpp
     ui/settings_ui.cpp
     ui/save_load_ui.cpp
     ui/ui_component.cpp

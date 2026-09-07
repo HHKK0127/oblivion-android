@@ -30,46 +30,6 @@
             android:textSize="12sp"
             android:padding="4dp" />
 
-        <Button
-            android:id="@+id/btn_debug_npc"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="NPC"
-            android:textSize="12sp"
-            android:padding="4dp" />
-
-        <Button
-            android:id="@+id/btn_debug_world"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="World"
-            android:textSize="12sp"
-            android:padding="4dp" />
-
-        <Button
-            android:id="@+id/btn_debug_perf"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Perf"
-            android:textSize="12sp"
-            android:padding="4dp" />
-
-        <Button
-            android:id="@+id/btn_debug_all"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="All"
-            android:textSize="12sp"
-            android:padding="4dp" />
-
-        <Button
-            android:id="@+id/btn_debug_menu"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Menu"
-            android:textSize="12sp"
-            android:padding="4dp" />
-
     </LinearLayout>
 
     <!-- Debug Toggle Button - Top-left corner -->

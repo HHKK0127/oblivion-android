@@ -204,36 +204,6 @@ class MainActivity : Activity() {
                 Log.d(TAG, "Toggled debug console")
             }
 
-            // NPC Debug toggle
-            findViewById<Button>(R.id.btn_debug_npc)?.setOnClickListener {
-                gameRenderer?.nativeToggleNpcDebug()
-                Log.d(TAG, "Toggled NPC debug")
-            }
-
-            // World Debug toggle
-            findViewById<Button>(R.id.btn_debug_world)?.setOnClickListener {
-                gameRenderer?.nativeToggleWorldDebug()
-                Log.d(TAG, "Toggled world debug")
-            }
-
-            // Performance Graph toggle
-            findViewById<Button>(R.id.btn_debug_perf)?.setOnClickListener {
-                gameRenderer?.nativeTogglePerfGraph()
-                Log.d(TAG, "Toggled performance graph")
-            }
-
-            // All Debug toggle
-            findViewById<Button>(R.id.btn_debug_all)?.setOnClickListener {
-                gameRenderer?.nativeToggleAllDebug()
-                Log.d(TAG, "Toggled all debug systems")
-            }
-
-            // Debug Menu toggle
-            findViewById<Button>(R.id.btn_debug_menu)?.setOnClickListener {
-                gameRenderer?.nativeToggleDebugMenu()
-                Log.d(TAG, "Toggled debug menu")
-            }
-
             Log.i(TAG, "Debug buttons setup complete")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to setup debug buttons: ${e.message}", e)

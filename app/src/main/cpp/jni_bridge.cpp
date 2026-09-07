@@ -732,56 +732,6 @@ Java_com_example_oblivion_GameRenderer_nativeToggleDebugConsole(
     }
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_example_oblivion_GameRenderer_nativeToggleNpcDebug(
-        [[maybe_unused]] JNIEnv* env,
-        [[maybe_unused]] jobject obj) {
-    LOGI("nativeToggleNpcDebug called");
-    if (g_renderer) {
-        g_renderer->toggleNpcDebugVisualizer();
-    }
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_com_example_oblivion_GameRenderer_nativeToggleWorldDebug(
-        [[maybe_unused]] JNIEnv* env,
-        [[maybe_unused]] jobject obj) {
-    LOGI("nativeToggleWorldDebug called");
-    if (g_renderer) {
-        g_renderer->toggleWorldDebugInfo();
-    }
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_com_example_oblivion_GameRenderer_nativeTogglePerfGraph(
-        [[maybe_unused]] JNIEnv* env,
-        [[maybe_unused]] jobject obj) {
-    LOGI("nativeTogglePerfGraph called");
-    if (g_renderer) {
-        g_renderer->togglePerformanceGraph();
-    }
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_com_example_oblivion_GameRenderer_nativeToggleAllDebug(
-        [[maybe_unused]] JNIEnv* env,
-        [[maybe_unused]] jobject obj) {
-    LOGI("nativeToggleAllDebug called");
-    if (g_renderer) {
-        g_renderer->toggleAllDebugSystems();
-    }
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_com_example_oblivion_GameRenderer_nativeToggleDebugMenu(
-        [[maybe_unused]] JNIEnv* env,
-        [[maybe_unused]] jobject obj) {
-    LOGI("nativeToggleDebugMenu called");
-    if (g_renderer) {
-        g_renderer->toggleDebugMenu();
-    }
-}
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_example_oblivion_GameRenderer_nativeIsExitRequested(
         [[maybe_unused]] JNIEnv* env,
@@ -840,16 +790,4 @@ Java_com_example_oblivion_GameRenderer_nativeGetConsoleOutput(
     }
 
     return env->NewStringUTF(result.c_str());
-}
-
-// Check if native debug menu is currently visible
-extern "C" JNIEXPORT jboolean JNICALL
-Java_com_example_oblivion_GameRenderer_nativeIsDebugMenuVisible(
-        [[maybe_unused]] JNIEnv* env,
-        [[maybe_unused]] jobject obj) {
-    if (!g_renderer) {
-        return JNI_FALSE;
-    }
-
-    return g_renderer->isDebugMenuVisible() ? JNI_TRUE : JNI_FALSE;
 }

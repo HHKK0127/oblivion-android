@@ -524,15 +524,6 @@ bool Renderer::initGameSystems() {
         LOGI("SpellSelectionPanel initialized successfully");
     }
 
-    // Initialize Debug HUD
-    LOGI("Creating DebugHUD...");
-    debugHUD = std::make_unique<DebugHUD>();
-    if (!debugHUD->initialize(textRenderer.get(), nullptr, this)) {
-        LOGE("Failed to initialize DebugHUD");
-        return false;
-    }
-    LOGI("DebugHUD initialized successfully");
-
     // Initialize Game Console
     LOGI("Creating GameConsole...");
     gameConsole = std::make_unique<GameConsole>();
@@ -542,17 +533,8 @@ bool Renderer::initGameSystems() {
     }
     LOGI("GameConsole initialized successfully");
 
-    // Initialize DebugMenu
-    debugMenu = std::make_unique<DebugMenu>();
-    if (!debugMenu->initialize(textRenderer.get(), gameConsole.get())) {
-        LOGE("Failed to initialize DebugMenu");
-        return false;
-    }
-    debugMenu->setScreenSize(screenWidth, screenHeight);
-    LOGI("DebugMenu initialized successfully");
-
     // Initialize unified DebugSystem (gesture-based toggling)
-    DebugSystem::getInstance().initialize(debugHUD.get(), debugMenu.get(), gameConsole.get());
+    DebugSystem::getInstance().initialize(gameConsole.get());
     LOGI("DebugSystem initialized successfully");
 
     // Connect GameConsole to game systems via GameSystemRefs
@@ -1274,10 +1256,6 @@ bool Renderer::initGameSystems() {
     refs.closeMenu = [this]() {
         // TODO: Implement menu closing
     };
-    refs.toggleDebugMenu = [this]() {
-        if (debugMenu) debugMenu->toggle();
-    };
-
     // Phase 65: Extended Debug callbacks
     refs.toggleWireframe = [this]() {
         wireframeMode = !wireframeMode;
@@ -1294,17 +1272,6 @@ bool Renderer::initGameSystems() {
     refs.toggleTouchTrail = [this]() {
         touchTrail = !touchTrail;
         LOGI("Touch trail: %s", touchTrail ? "ON" : "OFF");
-    };
-    refs.debugHudNextPage = [this]() {
-        if (debugHUD) debugHUD->nextPage();
-    };
-    refs.debugHudPrevPage = [this]() {
-        if (debugHUD) debugHUD->prevPage();
-    };
-    refs.toggleDebugLog = [this]() {
-        if (debugHUD) {
-            debugHUD->setLogVisible(!debugHUD->isLogVisible());
-        }
     };
 
     // Sound callbacks
@@ -1414,56 +1381,8 @@ bool Renderer::initGameSystems() {
         return assetManager->getTextureCacheStats();
     };
 
-    // Log callbacks
-    refs.setLogLevel = [this](const std::string& level) {
-        if (debugHUD) debugHUD->setLogLevel(level);
-    };
-    refs.clearLogs = [this]() {
-        if (debugHUD) debugHUD->clearLogs();
-    };
-    refs.exportLogs = [this]() {
-        if (debugHUD) debugHUD->exportLogs();
-    };
-    refs.getLogStats = [this]() -> std::string {
-        if (debugHUD) return debugHUD->getLogStats();
-        return "Log stats not available";
-    };
-    refs.searchLogs = [this](const std::string& pattern) {
-        if (debugHUD) debugHUD->searchLogs(pattern);
-    };
-    refs.toggleLogAutoScroll = [this]() {
-        if (debugHUD) debugHUD->toggleLogAutoScroll();
-    };
-
     gameConsole->setGameSystemRefs(refs);
     LOGI("GameSystemRefs connected to game systems");
-
-    // Initialize NPC Debug Visualizer
-    LOGI("Creating NpcDebugVisualizer...");
-    npcDebugVisualizer = std::make_unique<NpcDebugVisualizer>();
-    if (!npcDebugVisualizer->initialize(textRenderer.get(), npcManager.get())) {
-        LOGE("Failed to initialize NpcDebugVisualizer");
-        return false;
-    }
-    LOGI("NpcDebugVisualizer initialized successfully");
-
-    // Initialize World Debug Info
-    LOGI("Creating WorldDebugInfo...");
-    worldDebugInfo = std::make_unique<WorldDebugInfo>();
-    if (!worldDebugInfo->initialize(textRenderer.get(), worldManager.get())) {
-        LOGE("Failed to initialize WorldDebugInfo");
-        return false;
-    }
-    LOGI("WorldDebugInfo initialized successfully");
-
-    // Initialize Performance Graph
-    LOGI("Creating PerformanceGraph...");
-    performanceGraph = std::make_unique<PerformanceGraph>();
-    if (!performanceGraph->initialize(textRenderer.get())) {
-        LOGE("Failed to initialize PerformanceGraph");
-        return false;
-    }
-    LOGI("PerformanceGraph initialized successfully");
 
     // Initialize Settings UI
     LOGI("Creating SettingsUI...");
@@ -1666,10 +1585,6 @@ bool Renderer::initGameSystems() {
             LOGI("Sound definitions loaded successfully");
         } else {
             LOGW("Failed to load sound definitions - audio will use manual clip loading");
-        }
-        
-        if (debugHUD) {
-            debugHUD->setAudioManager(audioManager.get());
         }
     }
 #endif
@@ -2731,8 +2646,8 @@ void Renderer::render(float deltaTime) {
     if (!initialized) {
         static int nullRenderCount = 0;
         if (nullRenderCount % 60 == 0) {  // Log every 60 frames (~1 second at 60 FPS)
-            LOGE("CRITICAL: render() called but Renderer is not initialized! worldManager=%p debugHUD=%p",
-                 worldManager.get(), debugHUD.get());
+            LOGE("CRITICAL: render() called but Renderer is not initialized! worldManager=%p",
+                 worldManager.get());
         }
         nullRenderCount++;
         // Just clear the screen and return to prevent crash
@@ -2802,24 +2717,9 @@ void Renderer::render(float deltaTime) {
     // ===== NATIVE UI & HUD: Render directly on top of the screen at crisp, 100% full native resolution =====
     // Render 2D UI and HUD AFTER applying retro filter to completely prevent text corruption and layout distortion.
 
-    // Update Debug HUD (DeltaTime is in milliseconds from the JNI layer)
-    if (debugHUD) {
-        debugHUD->update(deltaTime);
-    }
-
-    // Update new debug systems
+    // Update debug systems
     if (gameConsole) {
         gameConsole->update(deltaTime);
-    }
-    if (npcDebugVisualizer) {
-        npcDebugVisualizer->setPlayerPosition(worldManager ? worldManager->getPlayerPosition() : glm::vec3(0.0f, 0.0f, 0.0f));
-        npcDebugVisualizer->update(deltaTime);
-    }
-    if (worldDebugInfo) {
-        worldDebugInfo->update(deltaTime);
-    }
-    if (performanceGraph) {
-        performanceGraph->update(deltaTime);
     }
 
     // Render UI
@@ -2832,23 +2732,9 @@ void Renderer::render(float deltaTime) {
         inventoryUI->render();
     }
 
-    // Render Debug HUD
-    if (debugHUD) {
-        debugHUD->render();
-    }
-
-    // Render new debug systems
+    // Render Debug systems
     if (gameConsole) {
         gameConsole->render();
-    }
-    if (npcDebugVisualizer) {
-        npcDebugVisualizer->render();
-    }
-    if (worldDebugInfo) {
-        worldDebugInfo->render();
-    }
-    if (performanceGraph) {
-        performanceGraph->render();
     }
 
     // Render SaveLoadUI if visible (higher priority than SettingsUI)
@@ -2864,11 +2750,6 @@ void Renderer::render(float deltaTime) {
     // Render Phase 9 UI Framework components (overlays on top of existing UI)
     if (uiSystem) {
         uiSystem->render();
-    }
-
-    // Render DebugMenu on top of UISystem when visible
-    if (debugMenu && debugMenu->isVisible()) {
-        debugMenu->render();
     }
 
     // Render Floating Combat Text
@@ -2952,20 +2833,6 @@ void Renderer::onTouchEvent(int pointerId, float x, float y, int action) {
             return;
         }
         LOGD("UISystem did not handle touch");
-    }
-
-    // DebugMenu handles touch when visible
-    if (debugMenu && debugMenu->isVisible()) {
-        if (action == 0 || action == 5) { // DOWN
-            debugMenu->onTouchDown(x, y);
-        } else if (action == 1 || action == 6) { // UP
-            debugMenu->onTouchUp(x, y);
-        } else if (action == 2) { // MOVE
-            debugMenu->onTouchMove(x, y);
-        } else if (action == 3) { // CANCEL
-            debugMenu->onTouchCancel();
-        }
-        return;
     }
 
     // GameConsole handles touch when visible
@@ -3071,27 +2938,11 @@ void Renderer::cleanup() {
         performanceMonitor->logDetailedMetrics();
     }
 
-    if (debugHUD) {
-        debugHUD->cleanup();
-    }
-
     if (gameConsole) {
         gameConsole->cleanup();
     }
 
     DebugSystem::getInstance().cleanup();
-
-    if (npcDebugVisualizer) {
-        npcDebugVisualizer->cleanup();
-    }
-
-    if (worldDebugInfo) {
-        worldDebugInfo->cleanup();
-    }
-
-    if (performanceGraph) {
-        performanceGraph->cleanup();
-    }
 
     if (settingsUI) {
         settingsUI->cleanup();
@@ -3233,59 +3084,6 @@ void Renderer::toggleGameConsole() {
         gameConsole->toggle();
         LOGI("Game Console %s", gameConsole->isVisible() ? "opened" : "closed");
     }
-}
-
-void Renderer::toggleDebugMenu() {
-    if (debugMenu) {
-        debugMenu->toggle();
-        bool menuVisible = debugMenu->isVisible();
-        LOGI("Debug Menu %s", menuVisible ? "opened" : "closed");
-
-        // Hide game UI buttons when debug menu is open
-        if (attackButton) attackButton->setVisible(!menuVisible);
-        if (blockButton) blockButton->setVisible(!menuVisible);
-        if (castSpellButton) castSpellButton->setVisible(!menuVisible);
-        for (int i = 0; i < QUICK_SLOT_COUNT; i++) {
-            if (quickSlotButtons[i]) quickSlotButtons[i]->setVisible(!menuVisible);
-        }
-        if (joystick) joystick->setVisible(!menuVisible);
-    }
-}
-
-void Renderer::toggleNpcDebugVisualizer() {
-    if (npcDebugVisualizer) {
-        npcDebugVisualizer->toggle();
-        LOGI("NPC Debug Visualizer %s", npcDebugVisualizer->isVisible() ? "enabled" : "disabled");
-    }
-}
-
-void Renderer::toggleWorldDebugInfo() {
-    if (worldDebugInfo) {
-        worldDebugInfo->toggle();
-        LOGI("World Debug Info %s", worldDebugInfo->isVisible() ? "enabled" : "disabled");
-    }
-}
-
-void Renderer::togglePerformanceGraph() {
-    if (performanceGraph) {
-        performanceGraph->toggle();
-        LOGI("Performance Graph %s", performanceGraph->isVisible() ? "enabled" : "disabled");
-    }
-}
-
-void Renderer::toggleAllDebugSystems() {
-    toggleGameConsole();
-    toggleNpcDebugVisualizer();
-    toggleWorldDebugInfo();
-    togglePerformanceGraph();
-}
-
-void Renderer::debugHudNextPage() {
-    if (debugHUD) debugHUD->nextPage();
-}
-
-void Renderer::debugHudPrevPage() {
-    if (debugHUD) debugHUD->prevPage();
 }
 
 bool Renderer::loadGameState(const std::string& slotName) {

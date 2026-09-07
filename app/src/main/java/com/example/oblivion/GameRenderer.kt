@@ -160,11 +160,6 @@ class GameRenderer : GLSurfaceView.Renderer {
 
     // Debug System Toggles
     external fun nativeToggleDebugConsole()
-    external fun nativeToggleNpcDebug()
-    external fun nativeToggleWorldDebug()
-    external fun nativeTogglePerfGraph()
-    external fun nativeToggleAllDebug()
-    external fun nativeToggleDebugMenu()
 
     // Execute a console command via native debug system
     external fun nativeExecuteCommand(command: String): String
@@ -174,7 +169,4 @@ class GameRenderer : GLSurfaceView.Renderer {
 
     // Get console output buffer as newline-joined string
     external fun nativeGetConsoleOutput(): String
-
-    // Check if native debug menu is currently visible
-    external fun nativeIsDebugMenuVisible(): Boolean
 }

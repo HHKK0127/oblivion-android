@@ -3,20 +3,18 @@
 #include <cstdint>
 #include <android/log.h>
 
-class DebugHUD;
-class DebugMenu;
 class GameConsole;
 
 /**
  * @brief Unified debug system coordinator
- * Provides gesture-based toggling of DebugHUD and DebugMenu.
+ * Provides gesture-based toggling of GameConsole.
  * Wraps existing debug subsystems without replacing them.
  */
 class DebugSystem {
 public:
     static DebugSystem& getInstance();
 
-    bool initialize(DebugHUD* hud, DebugMenu* menu, GameConsole* console);
+    bool initialize(GameConsole* console);
     void cleanup();
 
     /**
@@ -29,8 +27,6 @@ public:
      */
     void onTouch(int action, int pointerCount, float x, float y, int64_t eventTime);
 
-    DebugHUD* getHUD() const { return debugHUD; }
-    DebugMenu* getMenu() const { return debugMenu; }
     GameConsole* getConsole() const { return gameConsole; }
 
 private:
@@ -39,15 +35,7 @@ private:
     DebugSystem(const DebugSystem&) = delete;
     DebugSystem& operator=(const DebugSystem&) = delete;
 
-    DebugHUD* debugHUD;
-    DebugMenu* debugMenu;
     GameConsole* gameConsole;
-
-    // Gesture state: 3-finger tap detection
-    bool threeFingerDown;
-    int64_t threeFingerDownTime;
-    float threeFingerStartX;
-    float threeFingerStartY;
 
     // Gesture state: 2-finger double-tap detection
     int tapCount;
@@ -59,6 +47,5 @@ private:
     static constexpr int64_t TAP_MAX_DURATION_MS = 300;
     static constexpr float TAP_MAX_DISTANCE_PX = 50.0f;
     static constexpr int64_t DOUBLE_TAP_MAX_INTERVAL_MS = 400;
-    static constexpr int MIN_POINTER_COUNT_FOR_3FINGER = 3;
     static constexpr int MIN_POINTER_COUNT_FOR_2FINGER = 2;
 };
