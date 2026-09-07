@@ -427,6 +427,14 @@ void TitleScreen::onTouchEvent(float x, float y, int action) {
     }
 }
 
+// Debug helper: directly start a new game bypassing the menu UI hit-test.
+void TitleScreen::debugStartNewGame() {
+    if (state == TitleScreenState::MENU) {
+        selectedIndex = MENU_NEW;
+        handleMenuSelection();
+    }
+}
+
 void TitleScreen::onKeyPress(int key) {
     if (state == TitleScreenState::INTRO_MOVIE) {
         transitionToLogo();

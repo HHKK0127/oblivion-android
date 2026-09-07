@@ -97,6 +97,7 @@ public:
     void update(float deltaTime);
     void render();
     void onTouchEvent(float x, float y, int action);
+    void debugStartNewGame();
     void onKeyPress(int key);
 
     bool isGameStarted() const { return gameStarted; }

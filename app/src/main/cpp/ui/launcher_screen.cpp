@@ -608,6 +608,8 @@ void LauncherScreen::renderFadeToGame() {
 // Input handling
 // ============================================================================
 void LauncherScreen::onTouchEvent(float x, float y, int action) {
+    LOGI("LauncherScreen::onTouchEvent: action=%d, pos=(%.1f, %.1f), state=%d",
+         action, x, y, static_cast<int>(state));
     if (state == LauncherState::MAIN) {
         if (action == 0 || action == 5) { // TOUCH_DOWN
             if (mainPanel && mainPanel->onTouchDown(x, y, 0)) return;

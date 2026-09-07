@@ -38,8 +38,8 @@ private:
     SpellSelectedCallback onSpellSelected;
     class TextRenderer* textRenderer = nullptr;
 
-    float buttonHeight = 40.0f;
-    float buttonMargin = 5.0f;
+    float buttonHeight = 60.0f;
+    float buttonMargin = 10.0f;
 
     void createSpellButtons();
     void clearSpellButtons();

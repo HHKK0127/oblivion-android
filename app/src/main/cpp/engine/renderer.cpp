@@ -7,6 +7,10 @@
 #include "../inventory/item_factory.h"
 #include "../physics/physics_manager.h"
 // #include "../jni_audio_bridge.h"  // Deferred - requires Java MainActivity
+
+#include <glm/glm.hpp>
+#include <vector>
+
 #include <thread>
 #include <chrono>
 
@@ -235,8 +239,8 @@ void Renderer::resize(unsigned int width, unsigned int height) {
                     LOGD("Cast spell button pressed");
                     auto& player = *playerController->getPlayer();
 
-                    // If no spell selected, show spell selection panel
-                    if (!selectedSpell) {
+                    // Always show spell selection panel when MAG is pressed
+                    if (true) {
                         // Get player's known spells from Player struct
                         std::vector<std::shared_ptr<Spell>> playerSpells;
                         LOGD("Player equippedSpells count: %zu, knownSpells count: %zu",
@@ -490,8 +494,10 @@ bool Renderer::initGameSystems() {
     if (!spellSelectionPanel->initialize()) {
         LOGE("Failed to initialize SpellSelectionPanel");
     } else {
-        spellSelectionPanel->setPosition(screenWidth * 0.2f, screenHeight * 0.2f);
-        spellSelectionPanel->setSize(screenWidth * 0.6f, screenHeight * 0.6f);
+        float panelW = screenWidth * 0.45f;
+        float panelH = screenHeight * 0.60f;
+        spellSelectionPanel->setPosition((screenWidth - panelW) * 0.5f, (screenHeight - panelH) * 0.5f);
+        spellSelectionPanel->setSize(panelW, panelH);
         spellSelectionPanel->setTextRenderer(textRenderer.get());
         spellSelectionPanel->setVisible(false);
         spellSelectionPanel->setOnSpellSelected([this](std::shared_ptr<Spell> spell) {
@@ -1608,6 +1614,10 @@ bool Renderer::initGameSystems() {
     worldLoader->init(assetManager.get(), nullptr);  // CollisionWorld will be set later if needed
     LOGI("WorldLoader initialized successfully");
 
+    // Initialize Camera
+    camera = std::make_unique<Camera>();
+    LOGI("Camera initialized");
+
     // Initialize InventoryManager (Phase 3+)
     inventoryManager = std::make_unique<InventoryManager>();
     if (!inventoryManager->initialize()) {
@@ -2451,8 +2461,13 @@ void Renderer::render(float deltaTime) {
         launcherScreen->render();
 
         if (launcherScreen->isTransitioning()) {
-            // Wait for fade completion
-        }
+                // Check if fade is complete (displayTimer > 0.67s for fade=1.0 at 1.5x speed)
+                if (launcherScreen->getDisplayTimer() > 0.7f) {
+                    LOGI("Launcher fade complete - transitioning to title screen");
+                    showLauncher = false;
+                    showTitleScreen = true;
+                }
+            }
         if (performanceMonitor) performanceMonitor->endFrame();
         return;
     }
@@ -2496,6 +2511,12 @@ void Renderer::render(float deltaTime) {
 
     // Update Title Screen
     if (showTitleScreen) {
+            static int titleFrameCount = 0;
+            titleFrameCount++;
+            if (titleFrameCount % 120 == 0) {
+                LOGI("Title screen active (frame %d), titleStarted=%d",
+                     titleFrameCount, titleScreen ? (titleScreen->isGameStarted() ? 1 : 0) : -1);
+            }
         // BUG FIX: Null check titleScreen before access - it may not be created if init() failed early
         if (!titleScreen) {
             LOGE("titleScreen is null but showTitleScreen is true - skipping render");
@@ -2546,11 +2567,13 @@ void Renderer::render(float deltaTime) {
 
         if (titleScreen->isGameStarted()) {
             showTitleScreen = false;
+            LOGI("Game started! Setting buttons visible. joystick=%p attack=%p block=%p castSpell=%p",
+                 joystick.get(), attackButton.get(), blockButton.get(), castSpellButton.get());
             // Show combat buttons when game starts
-            if (joystick) joystick->setVisible(true);
-            if (attackButton) { attackButton->setVisible(true); LOGD("ATK button set visible"); }
-            if (blockButton) { blockButton->setVisible(true); LOGD("BLK button set visible"); }
-            if (castSpellButton) { castSpellButton->setVisible(true); LOGD("MAG button set visible"); }
+            if (joystick) { joystick->setVisible(true); LOGI("Joystick set visible: %d", joystick->isVisible() ? 1 : 0); }
+            if (attackButton) { attackButton->setVisible(true); LOGI("ATK button set visible: %d", attackButton->isVisible() ? 1 : 0); }
+            if (blockButton) { blockButton->setVisible(true); LOGI("BLK button set visible: %d", blockButton->isVisible() ? 1 : 0); }
+            if (castSpellButton) { castSpellButton->setVisible(true); LOGI("MAG button set visible: %d", castSpellButton->isVisible() ? 1 : 0); }
             for (auto& btn : quickSlotButtons) {
                 if (btn) btn->setVisible(true);
             }
@@ -2701,9 +2724,12 @@ void Renderer::render(float deltaTime) {
         retroFilter->bindSceneFramebuffer();
     }
 
-    // Render World (main game scene) - Clear with game background color
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);  // Dark gray for game screen
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // Ensure viewport is set for the full screen (Retro filter framebuffer may have changed it)
+        glViewport(0, 0, static_cast<GLsizei>(screenWidth), static_cast<GLsizei>(screenHeight));
+
+        // Render World (main game scene) - Clear with game background color
+        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);  // Dark gray for game screen
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Enable depth testing for proper face rendering
     glEnable(GL_DEPTH_TEST);
@@ -2755,6 +2781,10 @@ void Renderer::render(float deltaTime) {
     } else {
         LOGW("worldManager is null!");
     }
+
+    // Phase XX: Render placeholder primitives for entities with missing meshes
+    // (e.g., imperial_male.nif or imp.nif not present in APK assets)
+    renderPlaceholderEntities();
 
     // Phase 31: Render WorldEntities (skinned meshes with bone matrices)
     if (!worldEntities.empty()) {
@@ -2921,8 +2951,308 @@ void Renderer::render(float deltaTime) {
          deltaTime, performanceMonitor ? performanceMonitor->getFPS() : 0.0f, targetFPS);
 }
 
+// ============================================================
+// Placeholder rendering for entities whose NIF meshes failed to load
+// ============================================================
+
+// We position the camera above and behind the world's centre so that
+// the placeholder spheres are visible regardless of where the actual
+// NPCs spawn. This is a debug visualisation, not a proper player camera.
+static const float PH_CAMERA_HEIGHT = 60.0f;
+static const float PH_CAMERA_DIST = -120.0f;
+
+// Simple icosphere vertices for placeholder sphere rendering
+static const float ICOSAHEDRON_VERTS[] = {
+    // 12 vertices of an icosahedron
+     0.000f,  1.000f,  0.000f,
+     0.894f,  0.447f,  0.000f,
+     0.276f,  0.447f,  0.851f,
+    -0.724f,  0.447f,  0.526f,
+    -0.724f,  0.447f, -0.526f,
+     0.276f,  0.447f, -0.851f,
+     0.724f, -0.447f,  0.526f,
+    -0.276f, -0.447f,  0.851f,
+    -0.894f, -0.447f,  0.000f,
+    -0.276f, -0.447f, -0.851f,
+     0.724f, -0.447f, -0.526f,
+     0.000f, -1.000f,  0.000f
+};
+
+static const unsigned short ICOSAHEDRON_INDICES[] = {
+    0,1,2,  0,2,3,  0,3,4,  0,4,5,  0,5,1,
+    1,6,2,  2,7,3,  3,8,4,  4,9,5,  5,10,1,
+    6,7,2,  7,8,3,  8,9,4,  9,10,5, 10,6,1,
+    11,6,10, 11,7,6, 11,8,7, 11,9,8, 11,10,9
+};
+
+// Simple color-only vertex shader for placeholder spheres
+static const char* placeholderVertexSrc =
+"#version 300 es\n"
+"uniform mat4 uMVP;\n"
+"in vec3 aPosition;\n"
+"in vec3 aNormal;\n"
+"out vec3 vNormal;\n"
+"out vec3 vWorldPos;\n"
+"void main() {\n"
+"    vec4 worldPos = vec4(aPosition, 1.0);\n"
+"    gl_Position = uMVP * worldPos;\n"
+"    vNormal = aNormal;\n"
+"    vWorldPos = aPosition;\n"
+"}\n";
+
+static const char* placeholderFragmentSrc =
+"#version 300 es\n"
+"precision mediump float;\n"
+"uniform vec4 uColor;\n"
+"uniform vec3 uLightDir;\n"
+"in vec3 vNormal;\n"
+"in vec3 vWorldPos;\n"
+"out vec4 fragColor;\n"
+"void main() {\n"
+"    vec3 n = normalize(vNormal);\n"
+"    float NdotL = max(dot(n, normalize(uLightDir)), 0.0);\n"
+"    float ambient = 0.3;\n"
+"    float diff = 0.7 * NdotL;\n"
+"    fragColor = vec4(uColor.rgb * (ambient + diff), uColor.a);\n"
+"}\n";
+
+void Renderer::renderPlaceholderEntities() {
+    LOGI("renderPlaceholderEntities called: worldManager=%p", worldManager.get());
+    if (!worldManager) return;
+
+    NpcManager* npcMgr = worldManager->getNpcManager();
+    LOGI("  npcManager=%p", npcMgr);
+    if (!npcMgr) return;
+
+    auto allNpcs = npcMgr->getAllNPCs();
+    LOGI("  getAllNPCs returned %zu NPCs", allNpcs.size());
+
+    // Collect NPCs with no mesh loaded
+    struct PlaceholderInfo {
+        glm::vec3 position;
+        float radius;
+        glm::vec4 color;
+        uint32_t npcId;
+        std::string name;
+    };
+    std::vector<PlaceholderInfo> placeholders;
+
+    LOGI("renderPlaceholderEntities: checking %zu NPCs", allNpcs.size());
+    for (const auto& npc : allNpcs) {
+        if (!npc) continue;
+        LOGI("  NPC %u '%s': mesh=%s, path='%s'", npc->npcId, npc->name.c_str(),
+             npc->mesh ? "YES" : "NO", npc->meshAssetPath.c_str());
+        if (npc->mesh) continue;  // has real mesh, skip
+        if (npc->meshAssetPath.empty()) continue;  // no path assigned, skip
+
+        float radius = 40.0f;
+        glm::vec4 color(0.3f, 0.8f, 0.3f, 1.0f);  // Green for NPCs
+
+        // Player (ID 1) gets a distinct color
+        if (npc->npcId == 1) {
+            color = glm::vec4(0.2f, 0.5f, 1.0f, 1.0f);  // Blue for player
+            radius = 45.0f;
+        } else if (npc->npcId == 1000) {
+            // Imp
+            color = glm::vec4(1.0f, 0.4f, 0.1f, 1.0f);  // Orange for imp
+            radius = 30.0f;
+        }
+
+        placeholders.push_back({npc->position, radius, color, npc->npcId, npc->name});
+    }
+
+    if (placeholders.empty()) return;
+
+    // Compile placeholder shader once
+    static GLuint phShader = 0;
+    static bool phShaderInit = false;
+    if (!phShaderInit) {
+        // Compile vertex shader
+        GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(vs, 1, &placeholderVertexSrc, nullptr);
+        glCompileShader(vs);
+        GLint ok = 0;
+        glGetShaderiv(vs, GL_COMPILE_STATUS, &ok);
+        if (!ok) {
+            char buf[512];
+            glGetShaderInfoLog(vs, sizeof(buf), nullptr, buf);
+            LOGE("Placeholder vertex shader error: %s", buf);
+            glDeleteShader(vs);
+            return;
+        }
+
+        // Compile fragment shader
+        GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(fs, 1, &placeholderFragmentSrc, nullptr);
+        glCompileShader(fs);
+        glGetShaderiv(fs, GL_COMPILE_STATUS, &ok);
+        if (!ok) {
+            char buf[512];
+            glGetShaderInfoLog(fs, sizeof(buf), nullptr, buf);
+            LOGE("Placeholder fragment shader error: %s", buf);
+            glDeleteShader(vs);
+            glDeleteShader(fs);
+            return;
+        }
+
+        phShader = glCreateProgram();
+        glAttachShader(phShader, vs);
+        glAttachShader(phShader, fs);
+        glLinkProgram(phShader);
+        glGetProgramiv(phShader, GL_LINK_STATUS, &ok);
+        if (!ok) {
+            char buf[512];
+            glGetProgramInfoLog(phShader, sizeof(buf), nullptr, buf);
+            LOGE("Placeholder shader link error: %s", buf);
+            glDeleteProgram(phShader);
+            phShader = 0;
+            glDeleteShader(vs);
+            glDeleteShader(fs);
+            return;
+        }
+        glDeleteShader(vs);
+        glDeleteShader(fs);
+        phShaderInit = true;
+        LOGI("Placeholder entity shader compiled successfully");
+    }
+
+    if (!phShader) return;
+
+            // Log player and camera state for diagnostics
+            if (playerController) {
+                auto& pp = playerController->getPlayerPosition();
+                LOGI("renderPlaceholderEntities: playerPos=(%.1f, %.1f, %.1f), phCamEye=(%.1f, %.1f, %.1f), phCamTarget=(%.1f, %.1f, %.1f)",
+                     pp.x, pp.y, pp.z,
+                     pp.x, pp.y + PH_CAMERA_HEIGHT, pp.z + PH_CAMERA_DIST,
+                     pp.x, pp.y, pp.z);
+            }
+
+    // Create VBO/IBO for icosphere once
+    static GLuint phVAO = 0, phVBO = 0, phIBO = 0;
+    static int phIndexCount = 0;
+    if (!phVAO) {
+        // Build expanded vertex data: position + normal (same for sphere)
+        std::vector<float> verts;
+        for (int i = 0; i < 12; i++) {
+            float x = ICOSAHEDRON_VERTS[i * 3];
+            float y = ICOSAHEDRON_VERTS[i * 3 + 1];
+            float z = ICOSAHEDRON_VERTS[i * 3 + 2];
+            // Position
+            verts.push_back(x); verts.push_back(y); verts.push_back(z);
+            // Normal (same as position for unit sphere)
+            verts.push_back(x); verts.push_back(y); verts.push_back(z);
+        }
+
+        glGenVertexArrays(1, &phVAO);
+        glGenBuffers(1, &phVBO);
+        glGenBuffers(1, &phIBO);
+
+        glBindVertexArray(phVAO);
+
+        glBindBuffer(GL_ARRAY_BUFFER, phVBO);
+        glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(float), verts.data(), GL_STATIC_DRAW);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, phIBO);
+        phIndexCount = sizeof(ICOSAHEDRON_INDICES) / sizeof(unsigned short);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, phIndexCount * sizeof(unsigned short),
+                     ICOSAHEDRON_INDICES, GL_STATIC_DRAW);
+
+        // Position attribute
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        // Normal attribute
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+                             (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+
+        glBindVertexArray(0);
+        LOGI("Placeholder entity VAO created");
+    }
+
+    // Get camera matrices from camera controller
+        glm::mat4 viewMatrix = glm::mat4();
+        glm::mat4 projMatrix = glm::mat4();
+
+        if (playerController) {
+            // Use the player as the look-at target so the placeholders are framed
+            // around the player regardless of the underlying camera state.
+            glm::vec3 target = playerController->getPlayerPosition();
+            glm::vec3 eye = target + glm::vec3(0.0f, PH_CAMERA_HEIGHT, PH_CAMERA_DIST);
+            viewMatrix = glm::lookAt(eye, target, glm::vec3(0.0f, 1.0f, 0.0f));
+            projMatrix = glm::perspective(glm::radians(60.0f),
+                static_cast<float>(screenWidth) / static_cast<float>(screenHeight),
+                10.0f, 5000.0f);
+        } else if (camera) {
+            viewMatrix = camera->getViewMatrix();
+            projMatrix = camera->getProjectionMatrix(
+                static_cast<float>(screenWidth) / static_cast<float>(screenHeight));
+        } else {
+            // Last-resort top-down view so the placeholders remain visible.
+            glm::vec3 target(0.0f, 0.0f, 0.0f);
+            glm::vec3 eye(0.0f, PH_CAMERA_HEIGHT, PH_CAMERA_DIST);
+            viewMatrix = glm::lookAt(eye, target, glm::vec3(0.0f, 1.0f, 0.0f));
+            projMatrix = glm::perspective(glm::radians(60.0f),
+                static_cast<float>(screenWidth) / static_cast<float>(screenHeight),
+                10.0f, 5000.0f);
+        }
+
+    // Render all placeholders
+    glUseProgram(phShader);
+    glUniform3f(glGetUniformLocation(phShader, "uLightDir"), 0.5f, 1.0f, 0.3f);
+
+    glBindVertexArray(phVAO);
+
+        GLenum err = glGetError();
+        if (err != GL_NO_ERROR) {
+            LOGE("renderPlaceholderEntities pre-draw GL error: 0x%x", err);
+        }
+        LOGI("renderPlaceholderEntities: drawing %zu placeholders, shader=%u vao=%u idx=%u",
+             placeholders.size(), phShader, phVAO, phIndexCount);
+
+    for (const auto& ph : placeholders) {
+            // Build model matrix manually: translate + scale (uniform)
+            glm::mat4 model = glm::translate(glm::mat4(), ph.position);
+            // Apply uniform scale by scaling basis vectors (rows 0-2, cols 0-2)
+            for (int c = 0; c < 3; c++) {
+                for (int row = 0; row < 3; row++) {
+                    model.data[c][row] *= ph.radius;
+                }
+            }
+            glm::mat4 mvp = projMatrix * viewMatrix * model;
+
+            glUniformMatrix4fv(glGetUniformLocation(phShader, "uMVP"),
+                              1, GL_FALSE, mvp.value_ptr());
+            const float colorArr[4] = {ph.color.x, ph.color.y, ph.color.z, ph.color.w};
+            glUniform4fv(glGetUniformLocation(phShader, "uColor"),
+                        1, colorArr);
+
+            glDrawElements(GL_TRIANGLES, phIndexCount, GL_UNSIGNED_SHORT, nullptr);
+
+            LOGD("Rendered placeholder for NPC %u '%s' at (%.1f, %.1f, %.1f) r=%.1f",
+                 ph.npcId, ph.name.c_str(), ph.position.x, ph.position.y, ph.position.z, ph.radius);
+        }
+
+        glBindVertexArray(0);
+        glUseProgram(0);
+    }
+
 void Renderer::onTouchEvent(int pointerId, float x, float y, int action) {
-    LOGD("=== Touch event detected === ID: %d, Action: %d, Coords: (%.1f, %.1f)", pointerId, action, x, y);
+    LOGI("=== Touch event detected === ID: %d, Action: %d, Coords: (%.1f, %.1f)", pointerId, action, x, y);
+
+    // Convert physical touch coordinates to GL viewport coordinates.
+    // Physical screen (e.g., 1080x1920) differs from GL viewport (e.g., 1920x1017).
+    if (viewWidth > 0.0f && viewHeight > 0.0f) {
+        float viewW = static_cast<float>(screenWidth);
+        float viewH = static_cast<float>(screenHeight);
+        float scaleX = viewW / viewWidth;
+        float scaleY = viewH / viewHeight;
+        // Uniform scale with letterboxing
+        float scale = std::min(scaleX, scaleY);
+        x = x * scale;
+        y = y * scale;
+        LOGI("Touch converted: (%.1f, %.1f) -> (%.1f, %.1f) scale=%.3f view=(%.0f,%.0f) gl=(%u,%u)",
+             x/scale, y/scale, x, y, scale, viewWidth, viewHeight, screenWidth, screenHeight);
+    }
 
     // DebugSystem gesture detection (3-finger tap -> menu, 2-finger double-tap -> HUD)
     int pointerCount = static_cast<int>(touchStates.size()) + 1;
@@ -2970,6 +3300,7 @@ void Renderer::onTouchEvent(int pointerId, float x, float y, int action) {
 
     // Phase 9: UISystem handles all actions
     if (uiSystem) {
+        LOGI("Renderer: dispatching to UISystem: action=%d, x=%.1f, y=%.1f", action, x, y);
         bool uiHandled = false;
         if (action == 0 || action == 5) {
             uiHandled = uiSystem->onTouchDown(x, y, pointerId);
@@ -2980,10 +3311,10 @@ void Renderer::onTouchEvent(int pointerId, float x, float y, int action) {
         }
         
         if (uiHandled) {
-            LOGD("Touch consumed by UISystem");
+            LOGI("Touch consumed by UISystem");
             return;
         }
-        LOGD("UISystem did not handle touch");
+        LOGI("UISystem did not handle touch");
     }
 
     // Only process legacy UI elements on ACTION_DOWN (0 or 5)
@@ -3024,8 +3355,14 @@ void Renderer::onTouchEvent(int pointerId, float x, float y, int action) {
 
     // TitleScreen handles all touch actions (DOWN, UP, MOVE) for button click callbacks
     if (showTitleScreen && titleScreen) {
-        LOGD("Touch dispatched to TitleScreen at (%.1f, %.1f), action=%d", x, y, action);
+        LOGD("Touch dispatched to TitleScreen at (%.1f, %.1f), action=%d, showTitleScreen=%d",
+             x, y, action, showTitleScreen);
         titleScreen->onTouchEvent(x, y, action);
+        // Debug fallback: if title screen is still active after tap, force-start the game
+                if (action == 0 && !titleScreen->isGameStarted()) {
+            LOGI("Title screen still active after tap - forcing debug start new game");
+            titleScreen->debugStartNewGame();
+        }
         return;
     }
 

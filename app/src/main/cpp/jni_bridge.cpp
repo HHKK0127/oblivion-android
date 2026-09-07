@@ -155,6 +155,21 @@ Java_com_example_oblivion_GameRenderer_nativeSetViewport(
     }
 }
 
+// Set view (physical) size for touch coordinate conversion
+extern "C" JNIEXPORT void JNICALL
+Java_com_example_oblivion_GameRenderer_nativeSetViewSize(
+        [[maybe_unused]] JNIEnv* env,
+        [[maybe_unused]] jobject obj,
+        jlong handle,
+        jfloat width,
+        jfloat height) {
+    LOGD("nativeSetViewSize called: %.1f x %.1f", width, height);
+    Renderer* renderer = reinterpret_cast<Renderer*>(handle);
+    if (renderer) {
+        renderer->setViewSize(width, height);
+    }
+}
+
 // Render frame with handle parameter
 extern "C" JNIEXPORT void JNICALL
 Java_com_example_oblivion_GameRenderer_nativeRenderFrame(

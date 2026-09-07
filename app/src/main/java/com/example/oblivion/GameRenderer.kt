@@ -103,6 +103,12 @@ class GameRenderer : GLSurfaceView.Renderer {
                 Log.d(TAG, "Calling nativeSetViewport")
                 nativeSetViewport(nativeEngineHandle, width, height)
                 Log.d(TAG, "nativeSetViewport completed")
+
+                // Send view (physical) size for touch coordinate conversion
+                val viewW = gameSurfaceView?.width ?: width
+                val viewH = gameSurfaceView?.height ?: height
+                nativeSetViewSize(nativeEngineHandle, viewW.toFloat(), viewH.toFloat())
+                Log.d(TAG, "View size set: ${viewW}x${viewH}")
             } else {
                 Log.w(TAG, "onSurfaceChanged: nativeEngineHandle is 0")
             }
@@ -152,6 +158,7 @@ class GameRenderer : GLSurfaceView.Renderer {
 
     private external fun nativeInitEngine(): Long
     private external fun nativeSetViewport(handle: Long, width: Int, height: Int)
+    private external fun nativeSetViewSize(handle: Long, width: Float, height: Float)
     private external fun nativeRenderFrame(handle: Long)
     private external fun nativeOnTouchEvent(handle: Long, pointerId: Int, x: Float, y: Float, action: Int)
 

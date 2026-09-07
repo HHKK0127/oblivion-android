@@ -124,9 +124,11 @@ bool UIButton::onEvent(const UIEvent& event) {
         return false;
     }
 
+    glm::vec2 absPos = getAbsolutePosition();
+    LOGI("UIButton::onEvent: touch (%.1f, %.1f) button '%s' at abs(%.1f, %.1f) size(%.1f, %.1f) contains=%d",
+         event.x, event.y, label.c_str(), absPos.x, absPos.y, size.x, size.y, contains(event.x, event.y) ? 1 : 0);
     if (!contains(event.x, event.y)) {
-        glm::vec2 absPos = getAbsolutePosition();
-        LOGD("UIButton::onEvent: touch (%.1f, %.1f) missed button '%s' at abs(%.1f, %.1f) size(%.1f, %.1f)",
+        LOGI("UIButton::onEvent: touch (%.1f, %.1f) missed button '%s' at abs(%.1f, %.1f) size(%.1f, %.1f)",
              event.x, event.y, label.c_str(), absPos.x, absPos.y, size.x, size.y);
         if (event.type == UIEventType::TOUCH_UP) {
             pressed = false;

@@ -7,6 +7,7 @@
 #include <android/log.h>
 #include <android/asset_manager.h>
 #include <GLES3/gl3.h>
+#include "camera.h"
 #include "../ui/title_screen.h"
 #include "../ui/launcher_screen.h"
 #include "../ui/quest_ui.h"
@@ -153,6 +154,9 @@ private:
 
     // Phase 31: World Entity System
     std::unique_ptr<WorldLoader> worldLoader;
+
+    // Camera
+    std::unique_ptr<Camera> camera;
     std::vector<WorldEntity> worldEntities;
 
     // Imperial Weave: thin integration layer
@@ -174,6 +178,8 @@ private:
     bool initialized = false;  // Track if initialization succeeded
     unsigned int screenWidth;
     unsigned int screenHeight;
+    float viewWidth = 0.0f;
+    float viewHeight = 0.0f;
     float uiScale = 1.0f;  // UI scale factor based on aspect ratio
 
     // Frame Rate Control
@@ -223,6 +229,11 @@ public:
 
     unsigned int getScreenWidth() const { return screenWidth; }
     unsigned int getScreenHeight() const { return screenHeight; }
+
+    // View (physical) dimensions for touch coordinate conversion
+    void setViewSize(float w, float h) { viewWidth = w; viewHeight = h; }
+    float getViewWidth() const { return viewWidth; }
+    float getViewHeight() const { return viewHeight; }
 
     bool isLauncherActive() const { return showLauncher; }
     bool isTitleScreenActive() const { return showTitleScreen; }
@@ -301,4 +312,8 @@ private:
     void initLocalization();
     bool initGameSystems();
     void createTestScenario();
+
+    // Placeholder rendering for entities without meshes
+    void renderPlaceholderEntities();
+    void renderSphere(glm::vec3 position, float radius, glm::vec4 color);
 };

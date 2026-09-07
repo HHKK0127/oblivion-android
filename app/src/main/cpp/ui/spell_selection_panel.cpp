@@ -104,7 +104,7 @@ void SpellSelectionPanel::createSpellButtons() {
         std::weak_ptr<Spell> weakSpell = spell;
         button->setOnClick([this, weakSpell]() {
             if (auto s = weakSpell.lock()) {
-                LOGD_SP("Spell selected: %s", s->name.c_str());
+                LOGI("Spell selected: %s", s->name.c_str());
                 if (onSpellSelected) {
                     onSpellSelected(s);
                 }

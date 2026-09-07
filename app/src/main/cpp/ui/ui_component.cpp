@@ -156,9 +156,11 @@ glm::vec2 UIComponent::getAbsolutePosition() const {
 }
 
 bool UIComponent::contains(float x, float y) const {
+    // Use a larger hit box for small buttons (like spell panel rows)
+    const float HIT_PADDING = 8.0f;
     glm::vec2 absPos = getAbsolutePosition();
-    return (x >= absPos.x && x <= absPos.x + size.x &&
-            y >= absPos.y && y <= absPos.y + size.y);
+    return (x >= absPos.x - HIT_PADDING && x <= absPos.x + size.x + HIT_PADDING &&
+            y >= absPos.y - HIT_PADDING && y <= absPos.y + size.y + HIT_PADDING);
 }
 
 void UIComponent::onScreenResize(int width, int height) {

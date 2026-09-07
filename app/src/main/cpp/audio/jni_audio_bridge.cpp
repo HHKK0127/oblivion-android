@@ -48,13 +48,23 @@ void jni_audio_set_main_activity(jobject activity) {
 
     g_javaVM->GetEnv((void**)&env, JNI_VERSION_1_6);
     if (!env) {
-        LOGE("Failed to get JNI environment");
-        return;
+        int status = g_javaVM->AttachCurrentThread(&env, nullptr);
+        if (status != JNI_OK || !env) {
+            LOGE("Failed to get JNI environment: status=%d", status);
+            return;
+        }
     }
 
     // Delete previous activity reference (reference count management)
     if (g_mainActivity) {
         env->DeleteGlobalRef(g_mainActivity);
+        g_mainActivity = nullptr;
+    }
+
+    // Clear any pending exceptions before method lookup
+    if (env->ExceptionCheck()) {
+        LOGW("Clearing pending exception before method lookup");
+        env->ExceptionClear();
     }
 
     // Create global reference to new activity
@@ -66,19 +76,47 @@ void jni_audio_set_main_activity(jobject activity) {
         jclass activityClass = env->GetObjectClass(g_mainActivity);
         if (activityClass) {
             g_playBGMMethodId = env->GetMethodID(activityClass, "playBGM", "(Ljava/lang/String;)V");
+            if (env->ExceptionCheck()) {
+                LOGE("Exception during playBGM lookup");
+                env->ExceptionDescribe();
+                env->ExceptionClear();
+            }
+
             g_stopBGMMethodId = env->GetMethodID(activityClass, "stopBGM", "()V");
+            if (env->ExceptionCheck()) {
+                LOGE("Exception during stopBGM lookup");
+                env->ExceptionDescribe();
+                env->ExceptionClear();
+            }
+
             g_playSEMethodId = env->GetMethodID(activityClass, "playSE", "(Ljava/lang/String;)V");
+            if (env->ExceptionCheck()) {
+                LOGE("Exception during playSE lookup");
+                env->ExceptionDescribe();
+                env->ExceptionClear();
+            }
 
             if (!g_playBGMMethodId || !g_stopBGMMethodId || !g_playSEMethodId) {
-                LOGE("Failed to cache audio method IDs");
+                LOGE("Failed to cache audio method IDs: playBGM=%p, stopBGM=%p, playSE=%p",
+                     g_playBGMMethodId, g_stopBGMMethodId, g_playSEMethodId);
             } else {
-                LOGD("Audio method IDs cached successfully");
+                LOGI("Audio method IDs cached successfully");
             }
 
             env->DeleteLocalRef(activityClass);
+        } else {
+            LOGE("Failed to get MainActivity class");
+            if (env->ExceptionCheck()) {
+                env->ExceptionDescribe();
+                env->ExceptionClear();
+            }
         }
     } else {
         LOGE("Failed to create global reference to MainActivity");
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+        }
     }
 }
 

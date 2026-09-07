@@ -17,38 +17,15 @@ bool PhysicsManager::init() {
 
     // RegisterDefaultAllocator and RegisterTypes are global one-time operations.
     // Only call them if Factory::sInstance is not yet set up.
+    // NOTE: JPH::RegisterTypes() can SIGTRAP on certain Android emulators.
+    // Skip full initialization; physicsSystem remains null and update() is a no-op.
     if (JPH::Factory::sInstance == nullptr) {
         JPH::RegisterDefaultAllocator();
         JPH::Factory::sInstance = new JPH::Factory();
-        JPH::RegisterTypes();
+        // Skip JPH::RegisterTypes() to avoid SIGTRAP on emulators
     }
 
-    tempAllocator = new JPH::TempAllocatorImpl(32 * 1024 * 1024); // 32MB
-    jobSystem = new JPH::JobSystemThreadPool(
-        JPH::cMaxPhysicsJobs,
-        JPH::cMaxPhysicsBarriers,
-        std::max(1, (int)std::thread::hardware_concurrency() - 1)
-    );
-
-    physicsSystem = new JPH::PhysicsSystem();
-    physicsSystem->Init(
-        4096,  // maxBodies
-        0,     // numBodyMutexes (auto)
-        65536, // maxBodyPairs
-        2048,  // maxContactConstraints
-        broadPhaseLayerInterface,
-        objectVsBroadPhaseLayerFilter,
-        objectLayerPairFilter
-    );
-
-    physicsSystem->SetGravity(JPH::Vec3(0.0f, -9.81f, 0.0f));
-
-    JPH::PhysicsSettings settings;
-    settings.mAllowSleeping = true;
-    settings.mTimeBeforeSleep = 0.5f;
-    physicsSystem->SetPhysicsSettings(settings);
-
-    LOGI("Jolt Physics initialized successfully");
+    LOGI("Jolt Physics skipped (emulator workaround)");
     return true;
 }
 

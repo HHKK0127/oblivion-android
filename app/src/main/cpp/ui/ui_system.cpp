@@ -1,6 +1,17 @@
 #include "ui_system.h"
 #include <algorithm>
 #include "text_renderer.h"
+#include <android/log.h>
+
+#define LOG_TAG "UISystem"
+#define SYS_LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define SYS_LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#define SYS_LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
+#define SYS_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 UISystem::UISystem()
     : textRenderer(nullptr), screenWidth(1920), screenHeight(1080), initialized(false) {
@@ -152,13 +163,19 @@ void UISystem::renderLayers() {
 // === Event Dispatch ===
 
 bool UISystem::onTouchDown(float x, float y, int pointerId) {
+    LOGI("UISystem::onTouchDown: x=%.1f, y=%.1f, id=%d", x, y, pointerId);
     UIEvent event(UIEventType::TOUCH_DOWN, x, y, pointerId);
-    return dispatchEvent(event);
+    bool result = dispatchEvent(event);
+    LOGI("UISystem::onTouchDown: dispatchEvent returned %d", result ? 1 : 0);
+    return result;
 }
 
 bool UISystem::onTouchUp(float x, float y, int pointerId) {
+    LOGI("UISystem::onTouchUp: x=%.1f, y=%.1f, id=%d", x, y, pointerId);
     UIEvent event(UIEventType::TOUCH_UP, x, y, pointerId);
-    return dispatchEvent(event);
+    bool result = dispatchEvent(event);
+    LOGI("UISystem::onTouchUp: dispatchEvent returned %d", result ? 1 : 0);
+    return result;
 }
 
 bool UISystem::onTouchMove(float x, float y, float dx, float dy, int pointerId) {
@@ -169,7 +186,18 @@ bool UISystem::onTouchMove(float x, float y, float dx, float dy, int pointerId) 
 }
 
 bool UISystem::dispatchEvent(const UIEvent& event) {
-    if (!initialized) return false;
+    if (!initialized) {
+        LOGI("UISystem::dispatchEvent: not initialized");
+        return false;
+    }
+
+    int totalComponents = 0;
+    for (const auto& [layer, components] : layers) {
+        totalComponents += components.size();
+    }
+    LOGI("UISystem::dispatchEvent: type=%d, pos=(%.1f, %.1f), layers=%d, totalComponents=%d",
+         static_cast<int>(event.type), event.x, event.y,
+         static_cast<int>(layers.size()), totalComponents);
 
     // Bug #74: Copy layers to prevent iterator invalidation if handlers modify layers
     std::map<int, std::vector<std::shared_ptr<UIComponent>>> layersCopy;
@@ -183,13 +211,24 @@ bool UISystem::dispatchEvent(const UIEvent& event) {
         // Iterate in reverse for front-to-back within same layer
         for (auto compIt = components.rbegin(); compIt != components.rend(); ++compIt) {
             auto& comp = *compIt;
+            if (!comp) continue;
+            glm::vec2 absPos = comp->getAbsolutePosition();
+            glm::vec2 sz = comp->getSize();
+            bool contains = comp->isVisible() && comp->isEnabled() &&
+                            event.x >= absPos.x && event.x <= absPos.x + sz.x &&
+                            event.y >= absPos.y && event.y <= absPos.y + sz.y;
+            LOGI("  - '%s' at (%.0f, %.0f) size (%.0fx%.0f) vis=%d en=%d hit=%d",
+                 comp->getName().c_str(), absPos.x, absPos.y, sz.x, sz.y,
+                 comp->isVisible() ? 1 : 0, comp->isEnabled() ? 1 : 0, contains ? 1 : 0);
             if (comp && comp->isVisible() && comp->isEnabled()) {
                 if (comp->onEvent(event)) {
+                    LOGI("UISystem::dispatchEvent: event consumed by '%s'", comp->getName().c_str());
                     return true;  // Event consumed
                 }
             }
         }
     }
+    LOGI("UISystem::dispatchEvent: event NOT consumed");
     return false;
 }
 

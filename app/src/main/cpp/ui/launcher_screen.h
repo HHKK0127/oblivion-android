@@ -103,6 +103,7 @@ public:
     void setOnExitCallback(OnExitCallback cb) { onExitCallback = std::move(cb); }
 
     bool isTransitioning() const { return state == LauncherState::TRANSITIONING; }
+    float getDisplayTimer() const { return displayTimer; }
 
 private:
     void buildMainMenu();
