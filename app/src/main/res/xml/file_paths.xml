@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-files-path name="debug_exports" path="debug_exports/" />
+    <files-path name="crash_history" path="crash_history.json" />
+</paths>

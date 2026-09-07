@@ -11,15 +11,10 @@
 #include "../ui/launcher_screen.h"
 #include "../ui/quest_ui.h"
 #include "../ui/text_renderer.h"
-#include "../ui/debug_hud.h"
 #include "../system/debug_system.h"
 #include "../ui/settings_ui.h"
 #include "../ui/save_load_ui.h"
 #include "../ui/game_console.h"
-#include "../ui/debug_menu.h"
-#include "../ui/npc_debug_visualizer.h"
-#include "../ui/world_debug_info.h"
-#include "../ui/performance_graph.h"
 #include "../game/quest_manager.h"
 #include "../game/npc_manager.h"
 #include "../system/settings_manager.h"
@@ -79,14 +74,9 @@ private:
     std::unique_ptr<QuestUI> questUI;
     std::unique_ptr<InventoryUI> inventoryUI;
     std::unique_ptr<TextRenderer> textRenderer;
-    std::unique_ptr<DebugHUD> debugHUD;
     std::unique_ptr<SettingsUI> settingsUI;
     std::unique_ptr<SaveLoadUI> saveLoadUI;
     std::unique_ptr<GameConsole> gameConsole;
-    std::unique_ptr<DebugMenu> debugMenu;
-    std::unique_ptr<NpcDebugVisualizer> npcDebugVisualizer;
-    std::unique_ptr<WorldDebugInfo> worldDebugInfo;
-    std::unique_ptr<PerformanceGraph> performanceGraph;
 
     // Settings
     std::unique_ptr<SettingsManager> settingsManager;
@@ -204,13 +194,8 @@ public:
     TitleScreen* getTitleScreen() { return titleScreen.get(); }
     QuestUI* getQuestUI() { return questUI.get(); }
     TextRenderer* getTextRenderer() { return textRenderer.get(); }
-    DebugHUD* getDebugHUD() { return debugHUD.get(); }
     SettingsUI* getSettingsUI() { return settingsUI.get(); }
     GameConsole* getGameConsole() { return gameConsole.get(); }
-    DebugMenu* getDebugMenu() { return debugMenu.get(); }
-    NpcDebugVisualizer* getNpcDebugVisualizer() { return npcDebugVisualizer.get(); }
-    WorldDebugInfo* getWorldDebugInfo() { return worldDebugInfo.get(); }
-    PerformanceGraph* getPerformanceGraph() { return performanceGraph.get(); }
     SaveLoadUI* getSaveLoadUI() { return saveLoadUI.get(); }
     SettingsManager* getSettingsManager() { return settingsManager.get(); }
     PerformanceMonitor* getPerformanceMonitor() { return performanceMonitor.get(); }
@@ -242,11 +227,6 @@ public:
 
     // Debug System Toggles
     void toggleGameConsole();
-    void toggleDebugMenu();
-    void toggleNpcDebugVisualizer();
-    void toggleWorldDebugInfo();
-    void togglePerformanceGraph();
-    void toggleAllDebugSystems();
 
     // Phase 31: World Entity System
     WorldLoader* getWorldLoader() { return worldLoader.get(); }
@@ -286,10 +266,6 @@ public:
     bool isNpcOverlay() const { return npcOverlay; }
     void setTouchTrail(bool enabled) { touchTrail = enabled; }
     bool isTouchTrail() const { return touchTrail; }
-
-    // Debug HUD page navigation
-    void debugHudNextPage();
-    void debugHudPrevPage();
 
 private:
     bool wireframeMode = false;

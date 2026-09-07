@@ -11,6 +11,8 @@ import android.widget.Button
 import android.widget.LinearLayout
 import java.io.IOException
 import java.io.File
+import com.example.oblivion.debug.DebugCrashHandler
+import com.example.oblivion.debug.DebugMenuPanel
 
 class MainActivity : Activity() {
 
@@ -18,10 +20,11 @@ class MainActivity : Activity() {
     private var gameRenderer: GameRenderer? = null
     private var mediaPlayer: MediaPlayer? = null
     private var soundPool: SoundPool? = null
-    private val loadedSounds = mutableMapOf<String, Int>() // filename → soundId
+    private val loadedSounds = mutableMapOf<String, Int>() // filename -> soundId
     private var spLoadListener: SoundPool.OnLoadCompleteListener? = null
     private var debugButtonPanel: LinearLayout? = null
     private var isDebugPanelVisible = false
+    private var debugMenuPanel: DebugMenuPanel? = null
 
     companion object {
         private const val TAG = "MainActivity"
@@ -51,6 +54,8 @@ class MainActivity : Activity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Install crash handler before super.onCreate so we catch exceptions during init
+        DebugCrashHandler.init(this)
         super.onCreate(savedInstanceState)
         Log.i(TAG, "=== onCreate called ===")
 
@@ -175,6 +180,9 @@ class MainActivity : Activity() {
             // Setup debug buttons
             setupDebugButtons()
 
+            // Setup Kotlin debug menu panel
+            setupDebugMenuPanel()
+
             Log.i(TAG, "ContentView set successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Exception in initializeGame: ${e.message}", e)
@@ -199,39 +207,37 @@ class MainActivity : Activity() {
                 Log.d(TAG, "Toggled debug console")
             }
 
-            // NPC Debug toggle
-            findViewById<Button>(R.id.btn_debug_npc)?.setOnClickListener {
-                gameRenderer?.nativeToggleNpcDebug()
-                Log.d(TAG, "Toggled NPC debug")
-            }
-
-            // World Debug toggle
-            findViewById<Button>(R.id.btn_debug_world)?.setOnClickListener {
-                gameRenderer?.nativeToggleWorldDebug()
-                Log.d(TAG, "Toggled world debug")
-            }
-
-            // Performance Graph toggle
-            findViewById<Button>(R.id.btn_debug_perf)?.setOnClickListener {
-                gameRenderer?.nativeTogglePerfGraph()
-                Log.d(TAG, "Toggled performance graph")
-            }
-
-            // All Debug toggle
-            findViewById<Button>(R.id.btn_debug_all)?.setOnClickListener {
-                gameRenderer?.nativeToggleAllDebug()
-                Log.d(TAG, "Toggled all debug systems")
-            }
-
-            // Debug Menu toggle
-            findViewById<Button>(R.id.btn_debug_menu)?.setOnClickListener {
-                gameRenderer?.nativeToggleDebugMenu()
-                Log.d(TAG, "Toggled debug menu")
-            }
-
             Log.i(TAG, "Debug buttons setup complete")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to setup debug buttons: ${e.message}", e)
+        }
+    }
+
+    private fun setupDebugMenuPanel() {
+        try {
+            // Initialize the Kotlin debug menu panel with JNI command executor
+            debugMenuPanel = DebugMenuPanel(this) { command ->
+                try {
+                    val result = gameRenderer?.nativeExecuteCommand(command) ?: "No renderer"
+                    Log.d(TAG, "Debug command '$command' -> $result")
+                    result
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to execute debug command '$command': ${e.message}", e)
+                    "Error: ${e.message}"
+                }
+            }
+            debugMenuPanel?.initialize()
+
+            // Setup floating debug FAB button
+            val debugFab = findViewById<Button>(R.id.btn_debug_fab)
+            debugFab?.setOnClickListener {
+                debugMenuPanel?.toggle()
+                Log.d(TAG, "Debug menu toggled via FAB")
+            }
+
+            Log.i(TAG, "Kotlin debug menu panel setup complete")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to setup debug menu panel: ${e.message}", e)
         }
     }
 
@@ -294,8 +300,10 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.i(TAG, "onDestroy - cleaning up audio")
+        Log.i(TAG, "onDestroy - cleaning up audio and debug")
         cleanupAudio()
+        debugMenuPanel?.cleanup()
+        debugMenuPanel = null
         if (instance === this) {
             instance = null
         }

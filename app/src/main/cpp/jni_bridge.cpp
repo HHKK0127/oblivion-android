@@ -732,56 +732,6 @@ Java_com_example_oblivion_GameRenderer_nativeToggleDebugConsole(
     }
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_example_oblivion_GameRenderer_nativeToggleNpcDebug(
-        [[maybe_unused]] JNIEnv* env,
-        [[maybe_unused]] jobject obj) {
-    LOGI("nativeToggleNpcDebug called");
-    if (g_renderer) {
-        g_renderer->toggleNpcDebugVisualizer();
-    }
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_com_example_oblivion_GameRenderer_nativeToggleWorldDebug(
-        [[maybe_unused]] JNIEnv* env,
-        [[maybe_unused]] jobject obj) {
-    LOGI("nativeToggleWorldDebug called");
-    if (g_renderer) {
-        g_renderer->toggleWorldDebugInfo();
-    }
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_com_example_oblivion_GameRenderer_nativeTogglePerfGraph(
-        [[maybe_unused]] JNIEnv* env,
-        [[maybe_unused]] jobject obj) {
-    LOGI("nativeTogglePerfGraph called");
-    if (g_renderer) {
-        g_renderer->togglePerformanceGraph();
-    }
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_com_example_oblivion_GameRenderer_nativeToggleAllDebug(
-        [[maybe_unused]] JNIEnv* env,
-        [[maybe_unused]] jobject obj) {
-    LOGI("nativeToggleAllDebug called");
-    if (g_renderer) {
-        g_renderer->toggleAllDebugSystems();
-    }
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_com_example_oblivion_GameRenderer_nativeToggleDebugMenu(
-        [[maybe_unused]] JNIEnv* env,
-        [[maybe_unused]] jobject obj) {
-    LOGI("nativeToggleDebugMenu called");
-    if (g_renderer) {
-        g_renderer->toggleDebugMenu();
-    }
-}
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_example_oblivion_GameRenderer_nativeIsExitRequested(
         [[maybe_unused]] JNIEnv* env,
@@ -790,4 +740,54 @@ Java_com_example_oblivion_GameRenderer_nativeIsExitRequested(
         return g_renderer->isExitRequested() ? JNI_TRUE : JNI_FALSE;
     }
     return JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_example_oblivion_GameRenderer_nativeExecuteCommand(
+        JNIEnv* env,
+        [[maybe_unused]] jobject obj,
+        jstring command) {
+    if (!g_renderer) {
+        return env->NewStringUTF("Error: Renderer not initialized");
+    }
+
+    const char* commandStr = env->GetStringUTFChars(command, nullptr);
+    if (!commandStr) {
+        return env->NewStringUTF("Error: Null command");
+    }
+
+    LOGI("nativeExecuteCommand: %s", commandStr);
+
+    auto* console = g_renderer->getGameConsole();
+    if (console) {
+        console->executeCommand(std::string(commandStr));
+        env->ReleaseStringUTFChars(command, commandStr);
+        return env->NewStringUTF("OK");
+    } else {
+        env->ReleaseStringUTFChars(command, commandStr);
+        return env->NewStringUTF("Error: GameConsole not available");
+    }
+}
+
+// Get console output buffer as newline-joined string
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_example_oblivion_GameRenderer_nativeGetConsoleOutput(
+        JNIEnv* env,
+        [[maybe_unused]] jobject obj) {
+    if (!g_renderer) {
+        return env->NewStringUTF("");
+    }
+
+    auto* console = g_renderer->getGameConsole();
+    if (!console) {
+        return env->NewStringUTF("");
+    }
+
+    const auto& buffer = console->getOutputBuffer();
+    std::string result;
+    for (const auto& line : buffer) {
+        result += line + "\n";
+    }
+
+    return env->NewStringUTF(result.c_str());
 }
