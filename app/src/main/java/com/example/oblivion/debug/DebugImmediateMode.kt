@@ -341,13 +341,12 @@ class DebugImmediateMode {
      * Call periodically to prevent unbounded cache growth.
      */
     fun cleanupUnusedStates(maxAge: Long = 120) {
+        if (currentFrameId <= 0) return
         val staleIds = stateCache.entries
             .filter { currentFrameId - it.value.lastFrameId > maxAge }
             .map { it.key }
         staleIds.forEach { stateCache.remove(it) }
-        if (staleIds.isNotEmpty()) {
-            Log.d(TAG, "Cleaned up ${staleIds.size} stale widget states")
-        }
+        Log.d(TAG, "Cleaned up ${staleIds.size} stale widget states")
     }
 
     /**

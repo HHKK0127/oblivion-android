@@ -172,7 +172,7 @@ class DebugThermalMonitor {
         if (zones.isEmpty()) return null
 
         val maxTemp = zones.maxOfOrNull { it.temperatureCelsius } ?: 0f
-        val avgTemp = zones.map { it.temperatureCelsius }.average().toFloat()
+        val avgTemp = if (zones.isNotEmpty()) zones.map { it.temperatureCelsius }.average().toFloat() else 0f
 
         return ThermalSnapshot(
             timestamp = System.currentTimeMillis(),

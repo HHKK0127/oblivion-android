@@ -77,11 +77,12 @@ abstract class BaseDebugWidget(
         }
 
         override fun update() {
-            // Use post{} for UI thread safety
-            widgetView?.post {
-                applyEnabledState()
+                widgetView?.let { view ->
+                    if (view.isAttachedToWindow) {
+                        view.post { applyEnabledState() }
+                    }
+                }
             }
-        }
 
         /**
          * Cleanup widget resources. Override in subclasses if needed.
@@ -90,7 +91,21 @@ abstract class BaseDebugWidget(
             widgetView?.let { view ->
                 view.alpha = 1.0f
                 view.isEnabled = true
+                if (view is android.view.ViewGroup) {
+                    resetEnabledStateRecursive(view)
+                }
             }
             widgetView = null
+        }
+
+        private fun resetEnabledStateRecursive(group: android.view.ViewGroup) {
+            for (i in 0 until group.childCount) {
+                val child = group.getChildAt(i)
+                child.alpha = 1.0f
+                child.isEnabled = true
+                if (child is android.view.ViewGroup) {
+                    resetEnabledStateRecursive(child)
+                }
+            }
         }
     }

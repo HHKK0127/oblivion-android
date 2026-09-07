@@ -80,13 +80,7 @@ class DebugTabBar(
         if (index !in tabs.indices) return
         currentIndex = index
 
-        // Update button colors
-        tabButtons.forEachIndexed { i, btn ->
-            btn.setBackgroundColor(
-                if (i == index) tabs[i].color
-                else DebugButtonWidget.darkenColor(tabs[i].color, 0.6f)
-            )
-        }
+        updateButtonColors(index)
 
         onTabSelected(index)
     }
@@ -98,10 +92,16 @@ class DebugTabBar(
         if (index !in tabs.indices) return
         currentIndex = index
 
-        // Update button colors only
+        updateButtonColors(index)
+    }
+
+    /**
+     * Update the background color of all tab buttons to reflect the selected index.
+     */
+    private fun updateButtonColors(selectedIndex: Int) {
         tabButtons.forEachIndexed { i, btn ->
             btn.setBackgroundColor(
-                if (i == index) tabs[i].color
+                if (i == selectedIndex) tabs[i].color
                 else DebugButtonWidget.darkenColor(tabs[i].color, 0.6f)
             )
         }

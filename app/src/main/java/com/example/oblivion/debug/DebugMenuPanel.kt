@@ -634,6 +634,11 @@ class DebugMenuPanel(
      */
     private fun executeCommand(entry: CommandEntry) {
         Log.d(TAG, "Executing command: ${entry.command}")
+        // Guard against executing commands while the activity is finishing or destroyed
+        if (activity.isFinishing || activity.isDestroyed) {
+            Log.w(TAG, "Skipping command '${entry.command}' - activity is finishing or destroyed")
+            return
+        }
         try {
             val result = commandExecutor(entry.command)
             lastCommandResult = result

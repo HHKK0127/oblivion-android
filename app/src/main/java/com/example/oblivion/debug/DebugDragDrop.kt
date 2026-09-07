@@ -245,7 +245,12 @@ class DebugDragDrop(private val gridLayout: GridLayout) {
      * Validate that the current widget order is consistent.
      */
     private fun validateOrder(): Boolean {
-        val childCount = gridLayout.childCount
+        val grid = gridLayout
+        if (grid == null) {
+            Log.w(TAG, "validateOrder: gridLayout is null")
+            return false
+        }
+        val childCount = grid.childCount
         if (widgetOrder.size != childCount) return false
 
         // Check that all indices are valid
@@ -320,8 +325,12 @@ class DebugDragDrop(private val gridLayout: GridLayout) {
      * Clean up resources. Call when the menu is destroyed.
      */
     fun cleanup() {
-        for (i in 0 until gridLayout.childCount) {
-            val child = gridLayout.getChildAt(i)
+        val grid = gridLayout ?: run {
+            Log.w(TAG, "cleanup: gridLayout is null")
+            return
+        }
+        for (i in 0 until grid.childCount) {
+            val child = grid.getChildAt(i)
             child?.setOnLongClickListener(null)
             child?.setOnDragListener(null)
             child?.alpha = 1.0f
