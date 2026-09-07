@@ -26,7 +26,7 @@ class DebugMenuPanel(
 ) {
     companion object {
         private const val TAG = "DebugMenuPanel"
-        private const val TAB_COUNT = 13
+        private const val TAB_COUNT = 14
         private const val BUTTON_HEIGHT_DP = 40
         private const val TAB_HEIGHT_DP = 36
         private const val PADDING_DP = 4
@@ -48,6 +48,7 @@ class DebugMenuPanel(
         SYSTEM("System"),
         SOUND("Sound"),
         ASSETS("Assets"),
+        TOOLS("Tools"),
         LOGS("Logs")
     }
 
@@ -68,6 +69,21 @@ class DebugMenuPanel(
     // Sub-systems
     private val immediateMode = DebugImmediateMode()
     private val storage = DebugStorage(activity)
+
+    // Phase 1 debug tools (lazy, created on first use)
+    private val logcatReader by lazy { DebugLogcatReader(activity) }
+    private val memoryProfiler by lazy { DebugMemoryProfiler(activity) }
+    private val systemInfo by lazy { DebugSystemInfo(activity) }
+    private val networkInterceptor by lazy { DebugNetworkInterceptor(activity) }
+    private val crashViewer by lazy { DebugCrashViewer(activity) }
+
+    // Active tool overlay (only one tool open at a time)
+    private var toolOverlay: ViewGroup? = null
+    private var activeTool: ActiveTool? = null
+
+    private enum class ActiveTool {
+        LOGCAT, MEMORY, SYSTEM_INFO, NETWORK, CRASHES
+    }
 
     // State
     private var isVisible = false
@@ -315,6 +331,16 @@ class DebugMenuPanel(
             CommandEntry("Search Logs", "searchlog"),
             CommandEntry("Toggle Auto-scroll", "logautoscroll")
         )
+
+        // Tools tab - debug tools launched as separate overlays
+        tabContents[Tab.TOOLS] = listOf(
+            CommandEntry("Open Logcat Reader", "__open_logcat"),
+            CommandEntry("Open Memory Profiler", "__open_memory"),
+            CommandEntry("Open System Info", "__open_system_info"),
+            CommandEntry("Open Network Inspector", "__open_network"),
+            CommandEntry("Show Crash History", "__show_crashes"),
+            CommandEntry("Clear Crash History", "__clear_crashes")
+        )
     }
 
     /**
@@ -493,6 +519,9 @@ class DebugMenuPanel(
                 storage.saveScrollOffset(currentTab.ordinal, scroll.scrollY.toFloat())
             }
 
+            // Close any tool overlays before tearing down the menu
+            closeActiveTool()
+
             // Clean up overlay
             overlay?.let { existing ->
                 val parent = existing.parent as? ViewGroup
@@ -639,6 +668,13 @@ class DebugMenuPanel(
             Log.w(TAG, "Skipping command '${entry.command}' - activity is finishing or destroyed")
             return
         }
+
+        // Handle internal tool commands (prefixed with "__")
+        if (entry.command.startsWith("__")) {
+            handleInternalCommand(entry.command)
+            return
+        }
+
         try {
             val result = commandExecutor(entry.command)
             lastCommandResult = result
@@ -657,6 +693,108 @@ class DebugMenuPanel(
             Log.e(TAG, "Error executing command '${entry.command}': ${e.message}", e)
             lastCommandResult = "Error: ${e.message}"
         }
+    }
+
+    /**
+     * Handle internal panel commands that open or close debug tools.
+     */
+    private fun handleInternalCommand(command: String) {
+        try {
+            when (command) {
+                "__open_logcat" -> openToolOverlay(ActiveTool.LOGCAT, logcatReader.build(), logcatReader::start, logcatReader::stop)
+                "__open_memory" -> openToolOverlay(ActiveTool.MEMORY, memoryProfiler.build(), memoryProfiler::start, memoryProfiler::stop)
+                "__open_system_info" -> openToolOverlay(ActiveTool.SYSTEM_INFO, systemInfo.build(), systemInfo::start, systemInfo::stop)
+                "__open_network" -> openToolOverlay(ActiveTool.NETWORK, networkInterceptor.build(), networkInterceptor::start, networkInterceptor::stop)
+                "__show_crashes" -> openToolOverlay(ActiveTool.CRASHES, crashViewer.build(), crashViewer::start, crashViewer::stop)
+                "__clear_crashes" -> {
+                    DebugCrashHandler.clearHistory()
+                    Toast.makeText(activity, "Crash history cleared", Toast.LENGTH_SHORT).show()
+                }
+                else -> Log.w(TAG, "Unknown internal command: $command")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to handle internal command '$command': ${e.message}", e)
+        }
+    }
+
+    /**
+     * Open a tool view as a full-screen overlay on top of the debug menu.
+     */
+    private fun openToolOverlay(tool: ActiveTool, content: View, onStart: () -> Unit, onStop: () -> Unit) {
+        if (!isVisible) return
+        closeActiveTool()
+
+        val overlay = FrameLayout(activity).apply {
+            setBackgroundColor(0xCC000000.toInt())
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        val container = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        val closeButton = Button(activity).apply {
+            text = "Close"
+            setOnClickListener { closeActiveTool() }
+        }
+        container.addView(closeButton, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+
+        container.addView(content, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0,
+            1f
+        ))
+
+        overlay.addView(container)
+        (toolOverlay?.parent as? ViewGroup)?.removeView(toolOverlay)
+        toolOverlay = overlay
+        activeTool = tool
+        attachOverlay(overlay)
+        onStart()
+    }
+
+    /**
+     * Attach an overlay to the activity's content view.
+     */
+    private fun attachOverlay(overlay: View) {
+        val root = activity.window.decorView.findViewById<ViewGroup>(android.R.id.content)
+        (root as? ViewGroup)?.addView(
+            overlay,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
+    }
+
+    /**
+     * Close the currently active tool overlay, if any.
+     */
+    private fun closeActiveTool() {
+        val current = toolOverlay
+        if (current != null) {
+            when (activeTool) {
+                ActiveTool.LOGCAT -> logcatReader.cleanup()
+                ActiveTool.MEMORY -> memoryProfiler.cleanup()
+                ActiveTool.SYSTEM_INFO -> systemInfo.cleanup()
+                ActiveTool.NETWORK -> networkInterceptor.cleanup()
+                ActiveTool.CRASHES -> crashViewer.cleanup()
+                null -> {}
+            }
+            (current.parent as? ViewGroup)?.removeView(current)
+        }
+        toolOverlay = null
+        activeTool = null
     }
 
     /**

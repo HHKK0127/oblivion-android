@@ -11,6 +11,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import java.io.IOException
 import java.io.File
+import com.example.oblivion.debug.DebugCrashHandler
 import com.example.oblivion.debug.DebugMenuPanel
 
 class MainActivity : Activity() {
@@ -53,6 +54,8 @@ class MainActivity : Activity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Install crash handler before super.onCreate so we catch exceptions during init
+        DebugCrashHandler.init(this)
         super.onCreate(savedInstanceState)
         Log.i(TAG, "=== onCreate called ===")
 
