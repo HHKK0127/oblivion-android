@@ -142,6 +142,7 @@ class DebugGestureVisualizer(context: Context) : View(context) {
             }
 
             MotionEvent.ACTION_UP -> {
+                parent?.requestDisallowInterceptTouchEvent(false)
                 cancelLongPressDetection()
 
                 val dx = x - touchDownX
@@ -192,6 +193,7 @@ class DebugGestureVisualizer(context: Context) : View(context) {
             }
 
             MotionEvent.ACTION_CANCEL -> {
+                parent?.requestDisallowInterceptTouchEvent(false)
                 cancelLongPressDetection()
                 return true
             }
