@@ -339,7 +339,12 @@ class DebugMenuPanel(
             CommandEntry("Open System Info", "__open_system_info"),
             CommandEntry("Open Network Inspector", "__open_network"),
             CommandEntry("Show Crash History", "__show_crashes"),
-            CommandEntry("Clear Crash History", "__clear_crashes")
+            CommandEntry("Clear Crash History", "__clear_crashes"),
+            CommandEntry("Export Logcat", "__export_logcat"),
+            CommandEntry("Export Crash History", "__export_crashes"),
+            CommandEntry("Export All Debug Artifacts", "__export_all"),
+            CommandEntry("Share Latest Export", "__share_latest"),
+            CommandEntry("Clear Exports", "__clear_exports")
         )
     }
 
@@ -710,6 +715,33 @@ class DebugMenuPanel(
                     DebugCrashHandler.clearHistory()
                     Toast.makeText(activity, "Crash history cleared", Toast.LENGTH_SHORT).show()
                 }
+                "__export_logcat" -> {
+                    val file = DebugExportShare.exportLogcat(activity, getRecentLogcatLines())
+                    val msg = if (file != null) "Logcat exported: ${file.name}" else "Export failed"
+                    Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
+                }
+                "__export_crashes" -> {
+                    val file = DebugExportShare.exportCrashHistory(activity)
+                    val msg = if (file != null) "Crash history exported: ${file.name}" else "No crashes to export"
+                    Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
+                }
+                "__export_all" -> {
+                    exportAllDebugArtifacts()
+                }
+                "__share_latest" -> {
+                    val exports = DebugExportShare.listExports(activity)
+                    val latest = exports.maxByOrNull { it.lastModified() }
+                    if (latest != null) {
+                        DebugExportShare.shareFile(activity, latest)
+                    } else {
+                        Toast.makeText(activity, "No exports to share", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                "__clear_exports" -> {
+                    val success = DebugExportShare.clearExports(activity)
+                    val msg = if (success) "Exports cleared" else "Clear failed"
+                    Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
+                }
                 else -> Log.w(TAG, "Unknown internal command: $command")
             }
         } catch (e: Exception) {
@@ -795,6 +827,41 @@ class DebugMenuPanel(
         }
         toolOverlay = null
         activeTool = null
+    }
+
+    /**
+     * Get recent logcat lines from the native console output provider.
+     * Falls back to an empty list if no provider is available.
+     */
+    private fun getRecentLogcatLines(): List<String> {
+        return try {
+            val provider = commandExecutor("getrecentlog")
+            provider?.split('\n')?.filter { it.isNotBlank() }.orEmpty()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to fetch recent logcat: ${e.message}")
+            emptyList()
+        }
+    }
+
+    /**
+     * Export all available debug artifacts (logcat, crash history).
+     * Reports the result via Toast.
+     */
+    private fun exportAllDebugArtifacts() {
+        try {
+            val crashFile = DebugExportShare.exportCrashHistory(activity)
+            val logFile = DebugExportShare.exportLogcat(activity, getRecentLogcatLines())
+            val count = listOfNotNull(crashFile, logFile).size
+            val msg = when {
+                count == 2 -> "Exported 2 artifacts"
+                count == 1 -> "Exported 1 artifact"
+                else -> "Nothing to export"
+            }
+            Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.e(TAG, "Export all failed: ${e.message}")
+            Toast.makeText(activity, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     /**
