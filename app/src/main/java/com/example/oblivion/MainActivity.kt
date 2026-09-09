@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import java.io.IOException
 import java.io.File
@@ -190,16 +191,16 @@ class MainActivity : Activity() {
                             container.getLocationOnScreen(loc)
                             val containerLeft = loc[0].toFloat()
                             val containerTop = loc[1].toFloat()
-                            val containerRight = containerLeft + container.width
-                            val containerBottom = containerTop + container.height
+                            val containerRight = containerLeft + container.width.toFloat()
+                            val containerBottom = containerTop + container.height.toFloat()
 
                             val toggleBtn = findViewById<Button>(R.id.btn_debug_toggle)
                             val toggleLoc = IntArray(2)
                             toggleBtn.getLocationOnScreen(toggleLoc)
                             val toggleLeft = toggleLoc[0].toFloat()
                             val toggleTop = toggleLoc[1].toFloat()
-                            val toggleRight = toggleLeft + toggleBtn.width
-                            val toggleBottom = toggleTop + toggleBtn.height
+                            val toggleRight = toggleLeft + toggleBtn.width.toFloat()
+                            val toggleBottom = toggleTop + toggleBtn.height.toFloat()
 
                             // Check if touch is in debug UI
                             val inDebugArea = (rawX >= containerLeft && rawX <= containerRight &&
@@ -237,8 +238,8 @@ class MainActivity : Activity() {
 
     private fun setupDebugButtons() {
         try {
-            debugOverlayContainer = findViewById(R.id.debug_overlay_container)
-            debugButtonPanel = findViewById(R.id.debug_button_panel)
+            debugOverlayContainer = findViewById<FrameLayout>(R.id.debug_overlay_container)
+            debugButtonPanel = findViewById<LinearLayout>(R.id.debug_button_panel)
             val debugToggleBtn = findViewById<Button>(R.id.btn_debug_toggle)
             val closeDebugBtn = findViewById<Button>(R.id.btn_close_debug)
 
