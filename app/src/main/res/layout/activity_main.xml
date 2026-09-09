@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000">
@@ -10,69 +11,178 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Debug Button Overlay - Top-left, below status bar -->
-    <LinearLayout
-        android:id="@+id/debug_button_panel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top|start"
-        android:layout_marginStart="10dp"
-        android:layout_marginTop="50dp"
-        android:orientation="vertical"
-        android:padding="4dp"
+    <!-- Debug Overlay Container -->
+    <FrameLayout
+        android:id="@+id/debug_overlay_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:visibility="gone">
 
-        <Button
-            android:id="@+id/btn_debug_console"
-            android:layout_width="wrap_content"
+        <!-- Overlay Background (semi-transparent) -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#80000000" />
+
+        <!-- Debug Panel - Scrollable with all buttons -->
+        <ScrollView
+            android:layout_width="280dp"
             android:layout_height="wrap_content"
-            android:text="Console"
-            android:textSize="12sp"
-            android:padding="4dp" />
+            android:layout_gravity="top|start"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="60dp"
+            android:background="#CC333333"
+            android:padding="8dp">
 
+            <LinearLayout
+                android:id="@+id/debug_button_panel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="4dp">
+
+                <!-- Section: Debug Console -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Debug Console"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:paddingTop="8dp" />
+
+                <Button
+                    android:id="@+id/btn_debug_console"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="Toggle Console"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp"
+                    android:background="#444444"
+                    android:textColor="#FFFFFF" />
+
+                <!-- Section: NPC Debug -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="NPC Debug"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:paddingTop="12dp" />
+
+                <Button
+                    android:id="@+id/btn_debug_npc"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="Toggle NPC Debug"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp"
+                    android:background="#444444"
+                    android:textColor="#FFFFFF" />
+
+                <!-- Section: World Debug -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="World Debug"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:paddingTop="12dp" />
+
+                <Button
+                    android:id="@+id/btn_debug_world"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="Toggle World Debug"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp"
+                    android:background="#444444"
+                    android:textColor="#FFFFFF" />
+
+                <!-- Section: Performance -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Performance"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:paddingTop="12dp" />
+
+                <Button
+                    android:id="@+id/btn_debug_perf"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="Toggle Perf Graph"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp"
+                    android:background="#444444"
+                    android:textColor="#FFFFFF" />
+
+                <!-- Section: All Debug Systems -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="All Systems"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:paddingTop="12dp" />
+
+                <Button
+                    android:id="@+id/btn_debug_all"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="Toggle All Debug"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp"
+                    android:background="#444444"
+                    android:textColor="#FFFFFF" />
+
+                <!-- Section: Debug Menu -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Debug Menu"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:paddingTop="12dp" />
+
+                <Button
+                    android:id="@+id/btn_debug_menu"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="Open Debug Menu"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp"
+                    android:background="#444444"
+                    android:textColor="#FFFFFF"
+                    android:layout_marginBottom="8dp" />
+
+            </LinearLayout>
+
+        </ScrollView>
+
+        <!-- Close Button -->
         <Button
-            android:id="@+id/btn_debug_npc"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="NPC"
-            android:textSize="12sp"
-            android:padding="4dp" />
+            android:id="@+id/btn_close_debug"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_gravity="top|end"
+            android:layout_marginEnd="10dp"
+            android:layout_marginTop="10dp"
+            android:text="✕"
+            android:textSize="14sp"
+            android:background="#FF5555"
+            android:textColor="#FFFFFF"
+            android:elevation="10dp" />
 
-        <Button
-            android:id="@+id/btn_debug_world"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="World"
-            android:textSize="12sp"
-            android:padding="4dp" />
+    </FrameLayout>
 
-        <Button
-            android:id="@+id/btn_debug_perf"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Perf"
-            android:textSize="12sp"
-            android:padding="4dp" />
-
-        <Button
-            android:id="@+id/btn_debug_all"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="All"
-            android:textSize="12sp"
-            android:padding="4dp" />
-
-        <Button
-            android:id="@+id/btn_debug_menu"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Menu"
-            android:textSize="12sp"
-            android:padding="4dp" />
-
-    </LinearLayout>
-
-    <!-- Debug Toggle Button - Top-left corner, above panel -->
+    <!-- Debug Toggle Button - Top-left corner -->
     <Button
         android:id="@+id/btn_debug_toggle"
         android:layout_width="36dp"
@@ -84,7 +194,7 @@
         android:textSize="12sp"
         android:background="#333333"
         android:textColor="#FFFFFF"
-        android:alpha="0.5"
+        android:alpha="0.7"
         android:elevation="10dp" />
 
 </FrameLayout>

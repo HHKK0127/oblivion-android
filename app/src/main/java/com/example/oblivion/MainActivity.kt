@@ -21,7 +21,9 @@ class MainActivity : Activity() {
     private val loadedSounds = mutableMapOf<String, Int>() // filename → soundId
     private var spLoadListener: SoundPool.OnLoadCompleteListener? = null
     private var debugButtonPanel: LinearLayout? = null
+    private var debugOverlayContainer: FrameLayout? = null
     private var isDebugPanelVisible = false
+    private var isDebugMenuOpen = false
 
     companion object {
         private const val TAG = "MainActivity"
@@ -124,93 +126,95 @@ class MainActivity : Activity() {
                     }
 
                     // When native DebugMenu is visible, forward all touches to native
-                    // (the Android debug button panel is hidden)
                     val isNativeMenuVisible = gameRenderer?.nativeIsDebugMenuVisible() ?: false
                     if (actionMasked == android.view.MotionEvent.ACTION_DOWN) {
                         Log.d(TAG, "isNativeMenuVisible=$isNativeMenuVisible")
                     }
-                    if (!isNativeMenuVisible) {
-                        // Check if touch is in the debug button area (top-left corner)
-                        val debugToggle = findViewById<Button>(R.id.btn_debug_toggle)
-                        if (debugToggle != null) {
-                            val loc = IntArray(2)
-                            debugToggle.getLocationOnScreen(loc)
-                            val toggleLeft = loc[0].toFloat()
-                            val toggleTop = loc[1].toFloat()
-                            val toggleRight = toggleLeft + debugToggle.width
-                            val toggleBottom = toggleTop + debugToggle.height
+                    
+                    if (!isNativeMenuVisible && !isDebugPanelVisible) {
+                        // Debug UI is not visible, forward touch to game
+                        val actionIndex = event.actionIndex
+                        val pointerId: Int
+                        val x: Float
+                        val y: Float
+                        val action: Int
 
-                            // If debug panel is visible, also check panel area
-                            val panel = debugButtonPanel
-                            var inDebugArea = rawX >= toggleLeft && rawX <= toggleRight &&
-                                             rawY >= toggleTop && rawY <= toggleBottom
-
-                            if (!inDebugArea && panel != null && panel.visibility == View.VISIBLE) {
-                                val panelLoc = IntArray(2)
-                                panel.getLocationOnScreen(panelLoc)
-                                val panelLeft = panelLoc[0].toFloat()
-                                val panelTop = panelLoc[1].toFloat()
-                                val panelRight = panelLeft + panel.width
-                                val panelBottom = panelTop + panel.height
-                                inDebugArea = rawX >= panelLeft && rawX <= panelRight &&
-                                             rawY >= panelTop && rawY <= panelBottom
+                        when (actionMasked) {
+                            android.view.MotionEvent.ACTION_DOWN -> {
+                                pointerId = event.getPointerId(0)
+                                x = event.getX(0)
+                                y = event.getY(0)
+                                action = 0
                             }
+                            android.view.MotionEvent.ACTION_UP -> {
+                                pointerId = event.getPointerId(0)
+                                x = event.getX(0)
+                                y = event.getY(0)
+                                action = 1
+                            }
+                            android.view.MotionEvent.ACTION_MOVE -> {
+                                pointerId = event.getPointerId(0)
+                                x = event.getX(0)
+                                y = event.getY(0)
+                                action = 2
+                            }
+                            android.view.MotionEvent.ACTION_POINTER_DOWN -> {
+                                pointerId = event.getPointerId(actionIndex)
+                                x = event.getX(actionIndex)
+                                y = event.getY(actionIndex)
+                                action = 5
+                            }
+                            android.view.MotionEvent.ACTION_POINTER_UP -> {
+                                pointerId = event.getPointerId(actionIndex)
+                                x = event.getX(actionIndex)
+                                y = event.getY(actionIndex)
+                                action = 6
+                            }
+                            else -> {
+                                pointerId = event.getPointerId(0)
+                                x = event.getX(0)
+                                y = event.getY(0)
+                                action = 3
+                            }
+                        }
+                        gameRenderer?.onTouchEvent(pointerId, x, y, action)
+                        if (actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                            Log.d(TAG, "Forwarded touch to native: ($x, $y) action=$action")
+                        }
+                        return@setOnTouchListener true
+                    } else if (isDebugPanelVisible && actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                        // Check if touch is in debug UI area
+                        val container = debugOverlayContainer
+                        if (container != null && container.visibility == View.VISIBLE) {
+                            val loc = IntArray(2)
+                            container.getLocationOnScreen(loc)
+                            val containerLeft = loc[0].toFloat()
+                            val containerTop = loc[1].toFloat()
+                            val containerRight = containerLeft + container.width
+                            val containerBottom = containerTop + container.height
 
-                            // Let Android handle debug button touches
+                            val toggleBtn = findViewById<Button>(R.id.btn_debug_toggle)
+                            val toggleLoc = IntArray(2)
+                            toggleBtn.getLocationOnScreen(toggleLoc)
+                            val toggleLeft = toggleLoc[0].toFloat()
+                            val toggleTop = toggleLoc[1].toFloat()
+                            val toggleRight = toggleLeft + toggleBtn.width
+                            val toggleBottom = toggleTop + toggleBtn.height
+
+                            // Check if touch is in debug UI
+                            val inDebugArea = (rawX >= containerLeft && rawX <= containerRight &&
+                                              rawY >= containerTop && rawY <= containerBottom) ||
+                                             (rawX >= toggleLeft && rawX <= toggleRight &&
+                                              rawY >= toggleTop && rawY <= toggleBottom)
+
                             if (inDebugArea) {
+                                Log.d(TAG, "Touch in debug area, letting Android handle it")
                                 return@setOnTouchListener false
                             }
                         }
                     }
 
-                    val actionIndex = event.actionIndex
-                    val pointerId: Int
-                    val x: Float
-                    val y: Float
-                    val action: Int
-
-                    when (actionMasked) {
-                        android.view.MotionEvent.ACTION_DOWN -> {
-                            pointerId = event.getPointerId(0)
-                            x = event.getX(0)
-                            y = event.getY(0)
-                            action = 0
-                        }
-                        android.view.MotionEvent.ACTION_UP -> {
-                            pointerId = event.getPointerId(0)
-                            x = event.getX(0)
-                            y = event.getY(0)
-                            action = 1
-                        }
-                        android.view.MotionEvent.ACTION_MOVE -> {
-                            pointerId = event.getPointerId(0)
-                            x = event.getX(0)
-                            y = event.getY(0)
-                            action = 2
-                        }
-                        android.view.MotionEvent.ACTION_POINTER_DOWN -> {
-                            pointerId = event.getPointerId(actionIndex)
-                            x = event.getX(actionIndex)
-                            y = event.getY(actionIndex)
-                            action = 5
-                        }
-                        android.view.MotionEvent.ACTION_POINTER_UP -> {
-                            pointerId = event.getPointerId(actionIndex)
-                            x = event.getX(actionIndex)
-                            y = event.getY(actionIndex)
-                            action = 6
-                        }
-                        else -> {
-                            pointerId = event.getPointerId(0)
-                            x = event.getX(0)
-                            y = event.getY(0)
-                            action = 3
-                        }
-                    }
-                    gameRenderer?.onTouchEvent(pointerId, x, y, action)
-                    if (actionMasked == android.view.MotionEvent.ACTION_DOWN) {
-                        Log.d(TAG, "Forwarded touch to native: ($x, $y) action=$action")
-                    }
+                    // If we get here, don't forward to native
                     true
                 }
 
@@ -233,18 +237,28 @@ class MainActivity : Activity() {
 
     private fun setupDebugButtons() {
         try {
+            debugOverlayContainer = findViewById(R.id.debug_overlay_container)
             debugButtonPanel = findViewById(R.id.debug_button_panel)
             val debugToggleBtn = findViewById<Button>(R.id.btn_debug_toggle)
+            val closeDebugBtn = findViewById<Button>(R.id.btn_close_debug)
 
             // Toggle debug panel visibility
             debugToggleBtn.setOnClickListener {
                 // Close native DebugMenu if it's open
-                if (gameRenderer?.nativeIsDebugMenuVisible() == true) {
+                if (isDebugMenuOpen) {
                     gameRenderer?.nativeToggleDebugMenu()
+                    isDebugMenuOpen = false
                 }
                 isDebugPanelVisible = !isDebugPanelVisible
-                debugButtonPanel?.visibility = if (isDebugPanelVisible) View.VISIBLE else View.GONE
+                debugOverlayContainer?.visibility = if (isDebugPanelVisible) View.VISIBLE else View.GONE
                 Log.d(TAG, "Debug panel ${if (isDebugPanelVisible) "shown" else "hidden"}")
+            }
+
+            // Close button
+            closeDebugBtn.setOnClickListener {
+                isDebugPanelVisible = false
+                debugOverlayContainer?.visibility = View.GONE
+                Log.d(TAG, "Debug panel closed")
             }
 
             // Debug Console toggle
@@ -281,10 +295,13 @@ class MainActivity : Activity() {
             val menuBtn = findViewById<Button>(R.id.btn_debug_menu)
             menuBtn?.setOnClickListener {
                 gameRenderer?.nativeToggleDebugMenu()
+                isDebugMenuOpen = gameRenderer?.nativeIsDebugMenuVisible() ?: false
                 // Hide Android debug panel when native DebugMenu is open
-                debugButtonPanel?.visibility = View.GONE
-                isDebugPanelVisible = false
-                Log.d(TAG, "Toggled debug menu")
+                if (isDebugMenuOpen) {
+                    debugOverlayContainer?.visibility = View.GONE
+                    isDebugPanelVisible = false
+                }
+                Log.d(TAG, "Toggled debug menu, isMenuOpen=$isDebugMenuOpen")
             }
             Log.d(TAG, "Menu button found: ${menuBtn != null}, position: ${menuBtn?.left}, ${menuBtn?.top}, size: ${menuBtn?.width}x${menuBtn?.height}")
 
